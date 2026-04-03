@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tvien Movie Streaming - Rạp Phim Tại Gia</title>
+
+    <!-- Google Fonts: Outfit -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+
+    <!-- Plyr CSS: Trình phát video chuyên nghiệp -->
+    <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
+
+    <style>
+        :root {
+            --primary: #ff3e3e;
+            --bg-dark: #0f0f12;
+            --glass: rgba(255, 255, 255, 0.05);
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-dark);
+            color: white;
+            font-family: 'Outfit', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 1000px;
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 30px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            text-align: center;
+        }
+
+        h1 {
+            margin-top: 0;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #fff 0%, #888 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .player-wrapper {
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: black;
+            position: relative;
+        }
+
+        /* Tùy chỉnh Plyr cho giống Netflix */
+        .plyr--full-ui.plyr--video .plyr__control--overlaid {
+            background: var(--primary);
+        }
+
+        .plyr--video .plyr__controls {
+            background: linear-gradient(rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.7)) !important;
+        }
+
+        .footer {
+            margin-top: 20px;
+            font-size: 14px;
+            opacity: 0.5;
+        }
+
+        /* Nút lấp lánh :) */
+        .glow {
+            color: var(--primary);
+            text-shadow: 0 0 10px rgba(255, 62, 62, 0.5);
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h1>Phim của bạn <span class="glow">●</span></h1>
+
+        <div class="player-wrapper">
+            <!-- Video tag: Nơi chứa phim -->
+            <video id="player" controls crossorigin playsinline>
+                <!-- Master Playlist của bạn sẽ được dán vào đây qua JavaScript bên dưới -->
+            </video>
+        </div>
+
+        <div class="footer">
+            Powered by Project Tvien & FFmpeg Parallel Engine
+        </div>
+    </div>
+
+    <!-- Nạp thư viện hỗ trợ HLS và Plyr -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- BƯỚC QUAN TRỌNG: DÁN CÁI PLAYURL CỦA BẠN VÀO ĐÂY ---
+            const source = "https://pub-aa9f66cce0ef4d089400b2caacbc6045.r2.dev/stream/341cf860d29f4ff7aa1b97c1fd4fe7bc/master.m3u8";
+
+            const video = document.querySelector('video');
+
+            // Cấu hình Plyr
+            const player = new Plyr(video, {
+                captions: { active: true, update: true, language: 'en' },
+                quality: { default: 1080, options: [4320, 2880, 2160, 1440, 1080, 720, 576, 480, 360, 240] }
+            });
+
+            if (!Hls.isSupported()) {
+                // Nếu trình duyệt (như Safari trên iPhone) tự hỗ trợ HLS
+                video.src = source;
+            } else {
+                // Với các trình duyệt khác (Chrome/Firefox), dùng hls.js để đọc m3u8
+                const hls = new Hls();
+                hls.loadSource(source);
+                hls.attachMedia(video);
+                window.hls = hls;
+            }
+
+            // Xuất ra console để debug nếu cần
+            window.player = player;
+        });
+    </script>
+</body>
+
+</html>

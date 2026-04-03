@@ -1,0 +1,11 @@
+global:
+  scrape_interval: 15s # Thu thập dữ liệu mỗi 15 giây
+
+scrape_configs:
+  - job_name: "backend-api"
+    static_configs:
+      - targets: ["host.docker.internal:5113"] # Lấy từ cổng Backend
+
+  - job_name: "worker-engine"
+    static_configs:
+      - targets: ["host.docker.internal:1234"] # Lấy từ cổng Worker
