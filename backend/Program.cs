@@ -48,6 +48,13 @@ namespace ProjectTviEn
 
             var app = builder.Build();
 
+            // Tự động chạy Migration để tạo bảng trên Supabase (Cloud) nếu chưa có
+            using (var scope = app.Services.CreateScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                db.Database.Migrate();
+            }
+
             // Swagger luôn hiển thị (kể cả Production)
             app.UseSwagger();
             app.UseSwaggerUI(c =>
