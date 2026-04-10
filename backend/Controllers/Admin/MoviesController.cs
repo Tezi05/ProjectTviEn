@@ -96,6 +96,29 @@ namespace ProjectTviEn.Controllers.Admin
             });
         }
 
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateMovie(string id, [FromBody] Movie updated){
+            var movie = await _context.Movies.FindAsync(id);
+            if (movie == null) return NotFound($"Movie '{id}' not found");
+
+            movie.Title                = updated.Title ?? movie.Title;
+            movie.Slug                 = updated.Slug ?? movie.Slug;
+            movie.Description          = updated.Description ?? movie.Description;
+            movie.PosterUrl            = updated.PosterUrl ?? movie.PosterUrl;
+            movie.Duration             = updated.Duration ?? movie.Duration;
+            movie.ReleaseYear          = updated.ReleaseYear ?? movie.ReleaseYear;
+            movie.Country              = updated.Country ?? movie.Country;
+            movie.Language             = updated.Language ?? movie.Language;
+            movie.TrailerUrl           = updated.TrailerUrl ?? movie.TrailerUrl;
+            movie.MovieType            = updated.MovieType ?? movie.MovieType;
+            movie.ImdbScore            = updated.ImdbScore ?? movie.ImdbScore;
+            movie.RottenTomatoesScore  = updated.RottenTomatoesScore ?? movie.RottenTomatoesScore;
+
+            await _context.SaveChangesAsync();
+            await _cache.RemoveAsync(MoviesCacheKey);
+            return Ok(movie);
+        }
+
         [HttpPost]
         public async Task<IActionResult> CreateMovie([FromBody] Movie movie){
             if (string.IsNullOrEmpty(movie.Title))
