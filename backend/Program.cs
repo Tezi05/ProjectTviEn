@@ -35,18 +35,27 @@ namespace ProjectTviEn
             });
 
             builder.Services.AddControllers();
-            // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
-            builder.Services.AddSwaggerGen();
+            builder.Services.AddSwaggerGen(c =>
+            {
+                c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+                {
+                    Title = "TviEn Streaming API",
+                    Version = "v1",
+                    Description = "API quản lý phim, upload, transcoding và streaming cho nền tảng TviEn"
+                });
+            });
 
             var app = builder.Build();
 
-            // Configure the HTTP request pipeline.
-            if (app.Environment.IsDevelopment())
+            // Swagger luôn hiển thị (kể cả Production)
+            app.UseSwagger();
+            app.UseSwaggerUI(c =>
             {
-                app.UseSwagger();
-                app.UseSwaggerUI();
-            }
+                c.SwaggerEndpoint("/swagger/v1/swagger.json", "TviEn API v1");
+                c.RoutePrefix = string.Empty; // Để rỗng thì truy cập vào trang web cái là thấy Swagger luôn!
+                c.DocumentTitle = "TviEn API Docs";
+            });
 
             //app.UseHttpsRedirection();
 
