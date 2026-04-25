@@ -76,6 +76,24 @@ namespace ProjectTviEn.Services
 
             await _s3Client.DeleteObjectsAsync(DeleteRequest);
         }    
+
+        public async Task<string> GetFileContentAsync(string objectKey){
+            try 
+            {
+                var request = new GetObjectRequest
+                {
+                    BucketName = _bucketName,
+                    Key = objectKey
+                };
+                using var response = await _s3Client.GetObjectAsync(request);
+                using var reader = new StreamReader(response.ResponseStream);
+                return await reader.ReadToEndAsync();
+            }
+            catch (AmazonS3Exception ex) when (ex.ErrorCode == "NoSuchKey")
+            {
+                return null; // Return null if file doesn't exist
+            }
+        }
         
     }
 }

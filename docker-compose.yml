@@ -1,4 +1,4 @@
-version: '3.8'
+name: project-tvien
 
 services:
   postgres:
@@ -6,13 +6,15 @@ services:
     container_name: tvien_postgres
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: mypassword
+      POSTGRES_PASSWORD: admin
       POSTGRES_DB: ProjectTviEnDb
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - tvien_pgdata:/var/lib/postgresql/data
     restart: unless-stopped
+    networks:
+      - tvien_net
 
   redis:
     image: redis:7-alpine
@@ -20,26 +22,49 @@ services:
     ports:
       - "6379:6379"
     restart: unless-stopped
+    networks:
+      - tvien_net
+
+  adminer:
+    image: adminer
+    container_name: tvien_adminer
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+    networks:
+      - tvien_net
 
   prometheus:
     image: prom/prometheus
     container_name: tvien_prometheus
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./docker-data/prometheus:/prometheus
     ports:
       - "9090:9090"
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    networks:
+      - tvien_net
     restart: unless-stopped
 
   grafana:
     image: grafana/grafana
     container_name: tvien_grafana
+    volumes:
+      - ./docker-data/grafana:/var/lib/grafana
     ports:
       - "3005:3000"
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - tvien_net
     restart: unless-stopped
 
+networks:
+  tvien_net:
+    driver: bridge
+
 volumes:
-  postgres_data:
+  tvien_pgdata:
+

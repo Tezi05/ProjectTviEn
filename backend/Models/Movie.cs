@@ -9,7 +9,7 @@ namespace ProjectTviEn.Models
         [Key]
         [MaxLength(50)]
         [JsonPropertyName("movieId")]
-        public string Id { get; set; } = Guid.NewGuid().ToString("N");
+        public string Id { get; set; } = string.Empty;
 
         [Required]
         [MaxLength(255)]
@@ -46,6 +46,10 @@ namespace ProjectTviEn.Models
         public int? RottenTomatoesScore { get; set; } // 0 - 100 (%)
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        // --- Hệ thống theo dõi lượt xem (Trending) ---
+        public int WeeklyViews { get; set; } = 0;
+        public int WeeklyViewsResetWeek { get; set; } = 0;
 
         // AES-128 Encryption Key — không bao giờ trả về Frontend
         public string? EncryptionKey { get; set; }

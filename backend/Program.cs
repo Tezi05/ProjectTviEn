@@ -10,7 +10,16 @@ namespace ProjectTviEn
     {
         public static void Main(string[] args)
         {
-            var builder = WebApplication.CreateBuilder(args);
+            var builder = WebApplication.CreateBuilder(new WebApplicationOptions { Args = args });
+
+            // Tắt tính năng tự nạp lại (reload) appsettings để tránh lỗi cạn kiệt inotify trên Docker/Linux
+            builder.Host.ConfigureAppConfiguration((hostingContext, config) =>
+            {
+                foreach (var source in config.Sources.OfType<FileConfigurationSource>())
+                {
+                    source.ReloadOnChange = false;
+                }
+            });
             
             builder.Services.AddDbContext<AppDbContext>(options =>
                 options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -27,14 +36,24 @@ namespace ProjectTviEn
             // --- REDIS CACHE (Scaling) ---
             // Kết nối vào Docker Redis cổng 6379. 
             // Nếu Redis chưa chạy, hệ thống vẫn hoạt động bình thường (chỉ chậm hơn).
-            var redisConnection = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";
+            var redisConnection = (builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379") + ",abortConnect=false";
             builder.Services.AddStackExchangeRedisCache(options =>
             {
                 options.Configuration = redisConnection;
                 options.InstanceName = "tvien:"; // Prefix cho mọi cache key
             });
 
-            builder.Services.AddControllers();
+            // Đăng ký IConnectionMultiplexer để dùng các lệnh Redis nâng cao (như Queue)
+            builder.Services.AddSingleton<StackExchange.Redis.IConnectionMultiplexer>(
+                StackExchange.Redis.ConnectionMultiplexer.Connect(redisConnection)
+            );
+
+
+            builder.Services.AddControllers()
+                .AddJsonOptions(options =>
+                {
+                    options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+                });
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen(c =>
             {
