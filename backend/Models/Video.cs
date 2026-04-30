@@ -3,8 +3,9 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace ProjectTviEn.Models
 {
-    public class Video
+    public class Video : ISoftDelete
     {
+        public bool IsDeleted { get; set; } = false;
         [Key]
         [MaxLength(50)]
         public string VideoId { get; set; } = Guid.NewGuid().ToString("N");

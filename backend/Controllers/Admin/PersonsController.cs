@@ -21,9 +21,25 @@ namespace ProjectTviEn.Controllers.Admin
         {
             var persons = await _context.Persons
                 .OrderBy(p => p.FullName)
-                .Select(p => new { p.PersonId, p.FullName, p.Slug, p.Nationality, p.ProfilePhotoUrl, p.BirthDate })
+                .Select(p => new { p.Id, p.FullName, p.Slug, p.Nationality, p.AvatarUrl, p.Dob })
                 .ToListAsync();
             return Ok(persons);
+        }
+
+        // GET: api/admin/persons/search?keyword=tran&limit=10
+        [HttpGet("search")]
+        public async Task<IActionResult> Search([FromQuery] string keyword = "", [FromQuery] int limit = 10)
+        {
+            var q = _context.Persons.Where(p => !p.IsDeleted);
+            if (!string.IsNullOrWhiteSpace(keyword))
+                q = q.Where(p => p.FullName.ToLower().Contains(keyword.ToLower()) || 
+                                 (p.Nationality != null && p.Nationality.ToLower().Contains(keyword.ToLower())));
+            var results = await q
+                .OrderBy(p => p.FullName)
+                .Take(limit)
+                .Select(p => new { p.Id, p.FullName, p.AvatarUrl, p.Nationality, p.Dob })
+                .ToListAsync();
+            return Ok(results);
         }
 
         // GET: api/admin/persons/{id}
@@ -33,7 +49,7 @@ namespace ProjectTviEn.Controllers.Admin
             var person = await _context.Persons
                 .Include(p => p.MovieCrews)
                     .ThenInclude(mc => mc.Movie)
-                .FirstOrDefaultAsync(p => p.PersonId == id);
+                .FirstOrDefaultAsync(p => p.Id == id);
 
             if (person == null) return NotFound($"Person '{id}' not found");
             return Ok(person);
@@ -62,9 +78,10 @@ namespace ProjectTviEn.Controllers.Admin
             person.FullName        = updated.FullName ?? person.FullName;
             person.Slug            = updated.Slug ?? person.Slug;
             person.Biography       = updated.Biography ?? person.Biography;
-            person.ProfilePhotoUrl = updated.ProfilePhotoUrl ?? person.ProfilePhotoUrl;
-            person.BirthDate       = updated.BirthDate ?? person.BirthDate;
+            person.AvatarUrl       = updated.AvatarUrl ?? person.AvatarUrl;
+            person.Dob             = updated.Dob ?? person.Dob;
             person.Nationality     = updated.Nationality ?? person.Nationality;
+            person.Gender          = updated.Gender ?? person.Gender;
 
             await _context.SaveChangesAsync();
             return Ok(person);
@@ -77,9 +94,10 @@ namespace ProjectTviEn.Controllers.Admin
             var person = await _context.Persons.FindAsync(id);
             if (person == null) return NotFound($"Person '{id}' not found");
 
-            _context.Persons.Remove(person);
+            person.IsDeleted = true;
+            _context.Update(person);
             await _context.SaveChangesAsync();
-            return Ok($"Person '{person.FullName}' deleted");
+            return Ok($"Person '{person.FullName}' hidden (soft-deleted)");
         }
     }
 }

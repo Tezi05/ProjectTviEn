@@ -11,6 +11,6 @@ namespace ProjectTviEn.Services
         string GeneratePresignedUploadUrl(string objectKey, int expiresMinutes = 30);
         string GeneratePresignedDownloadUrl(string objectKey);
         Task DeleteFilesWithPrefix(string prefix);
-        Task<string> GetFileContentAsync(string objectKey);
+        Task<string?> GetFileContentAsync(string objectKey);
     }
 }

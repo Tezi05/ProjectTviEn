@@ -1,243 +1,251 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, memo } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
-import { Search, User, Play, Plus } from 'lucide-react';
-
+import { Search, User, Play, X, PlayCircle } from 'lucide-react';
+ 
+// ─── Types ───────────────────────────────────────────────────────────────────
 interface Movie {
   id: string;
   title: string;
   slug: string;
   posterUrl?: string;
+  description?: string;
+  releaseYear?: number;
+  weeklyViews?: number;
+  weeklyViewsResetWeek?: number;
+  movieType?: string;
 }
-
-// 1. Header (Floating Glassmorphism)
-const Navbar = () => (
-  <nav className="fixed top-4 left-1/2 -translate-x-1/2 w-[95%] max-w-7xl z-50 rounded-2xl bg-white/10 backdrop-blur-md px-6 py-4 flex justify-between items-center border border-white/5">
-    <div className="text-white text-xl font-bold tracking-widest">CINEMA</div>
-    <div className="flex gap-6 text-gray-300">
-      <Search className="w-5 h-5 cursor-pointer hover:text-white transition" />
-      <User className="w-5 h-5 cursor-pointer hover:text-white transition" />
+ 
+// ─── Constants ────────────────────────────────────────────────────────────────
+const WORKER_URL = process.env.NEXT_PUBLIC_WORKER_URL ?? 'http://localhost:5113/api/public/gatekeeper';
+const API_URL    = process.env.NEXT_PUBLIC_API_URL    ?? 'http://localhost:5113/api/admin/Movies';
+ 
+function getISOWeek(date: Date): number {
+  const startDate = new Date(date.getFullYear(), 0, 1);
+  const days = Math.floor((date.getTime() - startDate.getTime()) / 86_400_000);
+  return Math.ceil((date.getDay() + 1 + days) / 7);
+}
+const CURRENT_WEEK = getISOWeek(new Date());
+ 
+function normalizeMovie(d: any): Movie {
+  return {
+    id:                   d.id               ?? d.Id               ?? '',
+    title:                d.title            ?? d.Title            ?? 'Untitled',
+    slug:                 d.slug             ?? d.Slug             ?? '',
+    description:          d.description      ?? d.Description      ?? '',
+    posterUrl:            d.posterUrl        ?? d.PosterUrl,
+    releaseYear:          d.releaseYear      ?? d.ReleaseYear      ?? 2024,
+    weeklyViews:          d.weeklyViews      ?? d.WeeklyViews      ?? 0,
+    weeklyViewsResetWeek: d.weeklyViewsResetWeek ?? d.WeeklyViewsResetWeek ?? 0,
+    movieType:            d.movieType        ?? d.MovieType        ?? 'movie',
+  };
+}
+ 
+// ─── Navbar (Optimized) ──────────────────────────────────────────────────────
+const Navbar = memo(({ activeTab, onTabChange, onSearchOpen }: any) => (
+  <nav className="fixed top-0 w-full z-50 bg-black/20 backdrop-blur-2xl border-b border-white/5">
+    <div className="flex justify-between items-center px-8 md:px-16 h-24 max-w-[1600px] mx-auto">
+      <div className="text-[28px] font-bold tracking-tighter text-white">TviEn</div>
+      <div className="hidden md:flex gap-12 text-[11px] tracking-[0.25em] uppercase font-medium text-white/40">
+        <button onClick={() => onTabChange('cinema')} className={`transition ${activeTab === 'cinema' ? 'text-white border-b border-white pb-1' : 'hover:text-white'}`}>Cinema</button>
+        <button onClick={() => onTabChange('series')} className={`transition ${activeTab === 'series' ? 'text-white border-b border-white pb-1' : 'hover:text-white'}`}>Series</button>
+        <button onClick={() => onTabChange('originals')} className={`transition ${activeTab === 'originals' ? 'text-white border-b border-white pb-1' : 'hover:text-white'}`}>Originals</button>
+        <button onClick={() => onTabChange('library')} className={`transition ${activeTab === 'library' ? 'text-white border-b border-white pb-1' : 'hover:text-white'}`}>Library</button>
+      </div>
+      <div className="flex items-center gap-8">
+        <button onClick={onSearchOpen} className="text-white/60 hover:text-white transition"><Search className="w-5 h-5" /></button>
+        <button className="text-white/60 hover:text-white transition"><User className="w-5 h-5" /></button>
+      </div>
     </div>
   </nav>
-);
-
-// 2. Hero Section
-const Hero = ({ featured }: { featured: Movie | null }) => (
-  <div className="relative w-full h-[85vh]">
-    <img 
-      src="https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=2000&auto=format&fit=crop" 
-      alt="Hero Cover" 
-      className="w-full h-full object-cover"
-    />
-    <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-black/40 to-transparent"></div>
-    <div className="absolute inset-0 bg-gradient-to-r from-[#0a0a0a]/90 via-black/40 to-transparent"></div>
-
-    <div className="absolute bottom-20 left-12 md:left-24">
-      <div className="flex items-center gap-4 mb-2">
-        <h1 className="text-white text-6xl md:text-8xl font-black uppercase tracking-tighter">
-          {featured ? featured.title : "TviEn Movie"}
-        </h1>
-        <button className="bg-white/90 hover:bg-white text-black p-4 rounded-full transition-transform hover:scale-105 mt-2">
-          <Play className="w-8 h-8 ml-1" fill="currentColor" />
-        </button>
-      </div>
-      <p className="text-gray-400 text-sm tracking-widest uppercase font-semibold">
-        {featured ? "FEATURED • 2026" : "WELCOME"}
-      </p>
-    </div>
-  </div>
-);
-
-// 3. HoverPlayer Component (Thay thế MovieCard cũ)
-const HoverPlayer = ({ id, title, slug, posterUrl }: Movie) => {
+));
+Navbar.displayName = 'Navbar';
+ 
+// ─── HoverPlayer (Super Optimized - Lazy Video) ───────────────────────────────
+const HoverPlayer = memo(({ id, title, posterUrl }: Movie) => {
   const router = useRouter();
-  const videoRef = React.useRef<HTMLVideoElement>(null);
-  
-  // Logic hiển thị ảnh: 1. PosterUrl, 2. Thumbnail từ R2, 3. Unsplash (Fallback)
-  const hash = title.charCodeAt(0) + title.charCodeAt(title.length - 1);
-  const fallbackImgUrl = `https://images.unsplash.com/photo-${1500000000000 + hash}?q=80&w=400&h=600&auto=format&fit=crop`;
-  
-  // URL Worker/Gatekeeper - Có thể đưa vào biến môi trường
-  const workerUrl = "http://localhost:5113/api/public/gatekeeper"; 
-  const [cacheBuster] = React.useState(Date.now()); // Chống bóng ma Cache (Khởi tạo 1 lần khi mount)
-  const defaultThumbnailUrl = `${workerUrl}/video/${id}/thumbnail.jpg?v=${cacheBuster}`;
-  const previewVideoUrl = `${workerUrl}/video/${id}/preview.mp4?v=${cacheBuster}`;
-
+  const [isHovered, setIsHovered] = useState(false);
+  const previewUrl = `${WORKER_URL}/video/${id}/preview.mp4`;
+ 
   return (
     <div
       onClick={() => router.push(`/watch/${id}`)}
-      onMouseEnter={() => {
-          if (videoRef.current) {
-              const playPromise = videoRef.current.play();
-              if (playPromise !== undefined) playPromise.catch(() => {});
-          }
-      }}
-      onMouseLeave={() => {
-          if (videoRef.current) {
-              videoRef.current.pause();
-              videoRef.current.currentTime = 0;
-          }
-      }}
-      className="relative w-40 md:w-48 aspect-[2/3] rounded-xl overflow-hidden shrink-0 group cursor-pointer"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      className="flex-none w-[240px] aspect-[2/3] relative group overflow-hidden bg-[#201f1f] cursor-pointer rounded-sm"
     >
-      <div className="w-full h-full bg-gray-900 border border-white/10 relative">
+      {/* Chỉ mount Video khi thực sự Hover - Cực kỳ tiết kiệm CPU & Băng thông */}
+      {isHovered && (
         <video 
-           ref={videoRef}
-           src={previewVideoUrl}
-           className="w-full h-full object-cover absolute inset-0 z-0"
-           preload="metadata"
-           muted
-           loop
-           playsInline
+          src={previewUrl} 
+          autoPlay 
+          muted 
+          loop 
+          playsInline 
+          className="absolute inset-0 w-full h-full object-cover z-20 animate-fade-in" 
         />
-        <img 
-          src={posterUrl || defaultThumbnailUrl} 
-          alt={title} 
-          className="w-full h-full object-cover absolute inset-0 z-10 transition-opacity duration-700 group-hover:opacity-0" 
-          onError={(e) => { 
-             // Nếu ảnh thumbnail lỗi (phim cũ chưa có), chuyển sang Unsplash
-             if (e.currentTarget.src !== fallbackImgUrl) {
-                e.currentTarget.src = fallbackImgUrl;
-             }
-          }}
-        />
-      </div>
-      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4 z-20 pointer-events-none">
-        <div className="flex justify-between items-end transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
-          <span className="text-white font-bold text-sm truncate pr-2">{title}</span>
-          <div className="bg-white p-1.5 rounded-full flex-shrink-0">
-            <Play className="w-3 h-3 text-black ml-0.5" fill="currentColor" />
-          </div>
-        </div>
+      )}
+      
+      <img 
+        src={posterUrl} 
+        alt={title} 
+        loading="lazy"
+        className={`absolute inset-0 w-full h-full object-cover z-10 transition-all duration-700 ${isHovered ? 'opacity-0 scale-105' : 'opacity-100'}`} 
+      />
+      
+      <div className="absolute inset-0 group-hover:bg-black/20 transition-colors z-20" />
+      <div className="absolute bottom-0 left-0 w-full p-6 z-30 transform translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 bg-gradient-to-t from-black/80 to-transparent">
+        <span className="text-white text-xs font-bold uppercase tracking-widest truncate block">{title}</span>
       </div>
     </div>
   );
-};
-
-// 4. Continue Watching Card
-const ContinueCard = ({ title, imgUrl, progress }: { title: string, imgUrl: string, progress: number }) => (
-  <div className="relative w-64 md:w-80 aspect-video rounded-xl overflow-hidden shrink-0 group cursor-pointer">
-    <img src={imgUrl} alt={title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-    <div className="absolute inset-0 bg-black/30 group-hover:bg-black/10 transition-colors duration-300 flex items-center justify-center">
-        <Play className="w-10 h-10 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" fill="currentColor" />
-    </div>
-    <div className="absolute bottom-0 w-full bg-black/60 backdrop-blur-sm p-3">
-      <span className="text-white text-sm font-medium">{title}</span>
-      <div className="w-full bg-gray-700 h-1 mt-2 rounded-full overflow-hidden">
-        <div className="bg-white h-full" style={{ width: `${progress}%` }}></div>
+});
+HoverPlayer.displayName = 'HoverPlayer';
+ 
+// ─── ContinueCard (Optimized) ─────────────────────────────────────────────────
+const ContinueCard = memo(({ title, imgUrl, progress, movieId }: { title: string; imgUrl: string; progress: number; movieId?: string }) => {
+  const router = useRouter();
+  return (
+    <div 
+      onClick={() => movieId && router.push(`/watch/${movieId}`)}
+      className="flex-none w-[420px] aspect-video relative group overflow-hidden bg-[#201f1f] cursor-pointer rounded-sm"
+    >
+      <img src={imgUrl} alt={title} loading="lazy" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-100" />
+      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20">
+        <PlayCircle className="w-16 h-16 text-white" strokeWidth={1} />
+      </div>
+      <div className="absolute bottom-0 left-0 w-full h-[3px] bg-white/10">
+        <div className="h-full bg-white shadow-[0_0_12px_rgba(255,255,255,0.8)] transition-all duration-500" style={{ width: `${progress}%` }} />
       </div>
     </div>
-  </div>
-);
-
-// 5. Section/Row Component
-const Section = ({ title, children }: { title: string, children: React.ReactNode }) => (
-  <div className="mt-12 pl-12 md:pl-24">
-    <h2 className="text-white text-lg font-bold mb-4">{title}</h2>
-    <div className="flex gap-4 overflow-x-auto pb-4 pr-12 md:pr-24" style={{ msOverflowStyle: 'none', scrollbarWidth: 'none' }}>
-      {children}
-    </div>
-  </div>
-);
-
-// 6. Minimal Footer
-const Footer = () => (
-  <footer className="w-full mt-24 py-12 border-t border-white/5 flex flex-col items-center gap-6 text-xs text-gray-600">
-    <div className="flex gap-8 uppercase tracking-widest font-semibold">
-      <a href="#" className="hover:text-white transition">Giới thiệu</a>
-      <a href="#" className="hover:text-white transition">Điều khoản</a>
-      <a href="#" className="hover:text-white transition">Quyền riêng tư</a>
-      <a href="#" className="hover:text-white transition">Liên hệ</a>
-    </div>
-    <p>© 2026 CINEMA PLATFORM. ALL RIGHTS RESERVED.</p>
-  </footer>
-);
-
-export default function StreamingApp() {
+  );
+});
+ContinueCard.displayName = 'ContinueCard';
+ 
+// ─── Main Component ──────────────────────────────────────────────────────────
+export default function CinemaApp() {
+  const router = useRouter();
+  const { tab: urlTab } = router.query;
+  
   const [movies, setMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(true);
-
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('cinema');
+ 
+  // 1. Sync Tab from URL
   useEffect(() => {
-    // Gọi API động lấy danh sách phim
-    fetch('http://localhost:5113/api/admin/Movies')
-      .then(res => res.json())
-      .then(data => {
-        const mappedData = data.map((d: any) => ({
-          ...d,
-          id: d.id || d.Id,
-          title: d.title || d.Title,
-          slug: d.slug || d.Slug,
-          posterUrl: d.posterUrl || d.PosterUrl,
-          weeklyViews: d.weeklyViews || d.WeeklyViews || 0,
-          weeklyViewsResetWeek: d.weeklyViewsResetWeek || d.WeeklyViewsResetWeek || 0
-        }));
-        setMovies(mappedData);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error("Failed to fetch movies:", err);
-        setLoading(false);
-      });
+    if (urlTab) setActiveTab(urlTab as string);
+  }, [urlTab]);
+
+  // 2. Tab Change Handler
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    router.push({ query: { tab } }, undefined, { shallow: true });
+  };
+
+  // 3. Scroll Restoration Logic
+  useEffect(() => {
+    const handleScroll = () => {
+      sessionStorage.setItem('cinema_scroll_pos', window.scrollY.toString());
+    };
+    window.addEventListener('scroll', handleScroll);
+    
+    const savedPos = sessionStorage.getItem('cinema_scroll_pos');
+    if (savedPos) {
+      setTimeout(() => window.scrollTo(0, parseInt(savedPos)), 100);
+    }
+
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const featuredMovie = movies.length > 0 ? movies[0] : null;
+  useEffect(() => {
+    fetch(API_URL)
+      .then(res => res.json())
+      .then(data => {
+        let list = Array.isArray(data) ? data : (Object.values(data).find(v => Array.isArray(v)) as any[]) || [];
+        setMovies(list.map(normalizeMovie));
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
 
+  const filteredMovies = movies.filter(m => {
+    if (activeTab === 'series') return m.movieType === 'series';
+    if (activeTab === 'cinema') return m.movieType === 'movie';
+    return true;
+  });
+
+  const featured = filteredMovies.length > 0 ? filteredMovies[0] : (movies[0] || null);
+  const trending = filteredMovies.filter(m => m.weeklyViewsResetWeek === CURRENT_WEEK).sort((a,b) => (b.weeklyViews||0)-(a.weeklyViews||0)).slice(0, 10);
+ 
   return (
-    <div className="bg-[#0a0a0a] min-h-screen font-sans overflow-x-hidden selection:bg-white selection:text-black pb-8">
-      <Navbar />
-      <Hero featured={featuredMovie} />
-      
-      <div className="-mt-20 relative z-10">
-        <Section title="Phim Mới Cập Nhật">
-          {loading && <div className="text-gray-500">Đang tải dữ liệu động từ API...</div>}
-          {!loading && movies.length === 0 && (
-            <div className="text-gray-500 text-sm italic">Chưa có bộ phim nào trên hệ thống.</div>
-          )}
-          {movies.map((movie) => (
-            <HoverPlayer key={movie.id} id={movie.id} title={movie.title} slug={movie.slug} posterUrl={movie.posterUrl} />
-          ))}
-        </Section>
+    <>
+      <Head>
+        <title>TviEn — The Void is Calling</title>
+        <style>{`
+          /* Ẩn thanh cuộn toàn cục */
+          html, body, #__next {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+          }
+          html::-webkit-scrollbar, body::-webkit-scrollbar, #__next::-webkit-scrollbar {
+            display: none;
+          }
 
-        {/* Template Mẫu Khung Cảnh */}
-        <Section title="Lịch Sử">
-          <ContinueCard title="Tự động Phát tập kế tiếp" progress={65} imgUrl="https://images.unsplash.com/photo-1508921912186-1d1a45ebb3c1?q=80&w=600&auto=format&fit=crop" />
-          <ContinueCard title="Dune: Part Hai - Đoạn 3" progress={30} imgUrl="https://images.unsplash.com/photo-1605806616949-1e87b487cb2a?q=80&w=600&auto=format&fit=crop" />
-        </Section>
-
-        {!loading && movies.length > 0 && (
-          <Section title="Xu Hướng Tuần Này">
-            {movies
-              .filter((movie: any) => {
-                 // Tính toán số hiệu tuần hiện tại (ISO week)
-                 const currentDate = new Date();
-                 const startDate = new Date(currentDate.getFullYear(), 0, 1);
-                 const days = Math.floor((currentDate.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000));
-                 const currentWeek = Math.ceil((currentDate.getDay() + 1 + days) / 7);
-                 
-                 // So sánh với tuần được lưu trong backend
-                 return movie.weeklyViewsResetWeek === currentWeek && movie.weeklyViews > 0;
-              })
-              .sort((a: any, b: any) => b.weeklyViews - a.weeklyViews)
-              .slice(0, 10) // Lấy top 10
-              .map((movie) => (
-                <HoverPlayer key={movie.id} id={movie.id} title={movie.title} slug={movie.slug} posterUrl={movie.posterUrl} />
-            ))}
-            
-            {/* Fallback nếu tuần này chưa có ai xem phim nào */}
-            {movies.filter((movie: any) => {
-                 const currentDate = new Date();
-                 const startDate = new Date(currentDate.getFullYear(), 0, 1);
-                 const days = Math.floor((currentDate.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000));
-                 const currentWeek = Math.ceil((currentDate.getDay() + 1 + days) / 7);
-                 return movie.weeklyViewsResetWeek === currentWeek && movie.weeklyViews > 0;
-            }).length === 0 && movies.slice(0, 5).map((movie) => (
-               <HoverPlayer key={movie.id} id={movie.id} title={movie.title} slug={movie.slug} posterUrl={movie.posterUrl} />
-            ))}
-          </Section>
-        )}
+          .hide-scrollbar::-webkit-scrollbar { display: none; }
+          .hide-scrollbar { 
+            -ms-overflow-style: none; 
+            scrollbar-width: none; 
+          }
+          @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+          .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        `}</style>
+      </Head>
+ 
+      <div className="bg-[#131313] min-h-screen font-sans selection:bg-white selection:text-black antialiased">
+        <Navbar activeTab={activeTab} onTabChange={handleTabChange} onSearchOpen={() => setSearchOpen(true)} />
+        
+        {/* Hero */}
+        <header className="relative w-full h-[90vh] min-h-[700px] flex items-end overflow-hidden">
+          <img src={featured?.posterUrl || 'https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=2000'} alt="" className="absolute inset-0 w-full h-full object-cover scale-105 z-0" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#131313] via-[#131313]/60 to-transparent z-10" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#131313]/80 via-transparent to-transparent z-10" />
+          <div className="relative z-20 w-full max-w-[1600px] mx-auto px-8 md:px-16 pb-24">
+            <h1 className="text-6xl md:text-8xl font-serif font-bold text-white mb-6 max-w-4xl tracking-tight leading-[0.9]">
+              {featured?.title || 'The Echoes of Silence'}
+            </h1>
+            <p className="text-white/60 text-lg max-w-2xl mb-10 font-light leading-relaxed">
+              {featured?.description || 'In a world where sound is forbidden, one rebel discovers a frequency that could shatter the fragile peace of the utopia.'}
+            </p>
+            <button className="bg-white text-black px-10 py-4 rounded-sm font-semibold text-[11px] uppercase tracking-[0.2em] hover:bg-white/80 transition-all flex items-center gap-3">
+              <Play className="w-5 h-5 fill-current" /> Play Now
+            </button>
+          </div>
+        </header>
+ 
+        <main className="w-full max-w-[1600px] mx-auto px-8 md:px-16 pt-24">
+          <section className="mb-24">
+            <h2 className="text-[42px] font-serif font-bold text-white mb-12 tracking-tight">New & Noteworthy</h2>
+            <div className="flex gap-6 overflow-x-auto pb-10 hide-scrollbar">
+              {loading ? [1,2,3,4,5].map(i => <div key={i} className="w-[240px] aspect-[2/3] bg-white/5 animate-pulse rounded-sm" />) :
+                filteredMovies.map(m => <HoverPlayer key={m.id} {...m} />)
+              }
+            </div>
+          </section>
+ 
+          <section className="mb-24">
+            <h2 className="text-[42px] font-serif font-bold text-white mb-12 tracking-tight">Continue Watching</h2>
+            <div className="flex gap-6 overflow-x-auto pb-10 hide-scrollbar">
+              <ContinueCard title="Echoes of Silence" progress={75} imgUrl="https://lh3.googleusercontent.com/aida-public/AB6AXuD63HDODUKXchyc1i-5yUlOP408n4WiNeQsrSApMuE-DpBczngjwylsEruWvwQXx7BQkm-QH8spSo1V_1yy-aydc5wspZhxC1P9_oCxTr9fdZGRnAtqI4IDyYAaKFzNXz72yJC5UyKrLdWQlaJKnOxHTLi82wMLGyfxKdfUvJ-BOYIKWrh6BqLqiOJ08k6kINDV4RhVCQKj2oezCl1FJ3HCzTN9AwoTVeo_r3gqPdDp9I5aWixDT2qw4cEiJaRU07syVJOfSgKN2hUE" />
+              <ContinueCard title="Dune: Part Two" progress={30} imgUrl="https://lh3.googleusercontent.com/aida-public/AB6AXuA9qY04G39OpNTNBchQLE0JT09lrnFe0ZuURnboSIQehu_1MKMJfXX8fcnTcdZbsroKifq2-gUiROtrlfICIJ-lFfdeIkZCSH4Xo548OACnWOyT6KAqoFNgRjCtcZ5N3SFXi3niNq7fuOq54kCkf3VfHZHzzwLC_OZ7Q5y29l3VYSL9ZbYcTACvswGIDdtdPLirpkA5VvVbus9viQ5czfHmiiRUl9kDr-wV2Nk_hnBns7ShZP6OdtLHZJamUsraJchRJ-4VMKBEFKuB" />
+            </div>
+          </section>
+        </main>
+ 
+        <footer className="w-full py-24 bg-[#0A0A0A] mt-24 border-t border-white/5 text-center">
+          <p className="text-[10px] tracking-[0.4em] uppercase text-white/10">© 2024 TVIEN. THE VOID IS CALLING.</p>
+        </footer>
       </div>
-
-      <Footer />
-    </div>
+    </>
   );
 }

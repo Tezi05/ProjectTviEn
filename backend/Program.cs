@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using Prometheus;
-
 using ProjectTviEn.Models;
 using ProjectTviEn.Services;
 
@@ -8,23 +7,19 @@ namespace ProjectTviEn
 {
     public class Program
     {
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
-            var builder = WebApplication.CreateBuilder(new WebApplicationOptions { Args = args });
+            var builder = WebApplication.CreateBuilder(args);
 
-            // Tắt tính năng tự nạp lại (reload) appsettings để tránh lỗi cạn kiệt inotify trên Docker/Linux
-            builder.Host.ConfigureAppConfiguration((hostingContext, config) =>
+            // Tắt reload cấu hình để tối ưu hiệu suất (Sử dụng builder.Configuration trực tiếp)
+            foreach (var source in ((IConfigurationBuilder)builder.Configuration).Sources.OfType<FileConfigurationSource>())
             {
-                foreach (var source in config.Sources.OfType<FileConfigurationSource>())
-                {
-                    source.ReloadOnChange = false;
-                }
-            });
-            
+                source.ReloadOnChange = false;
+            }
+
             builder.Services.AddDbContext<AppDbContext>(options =>
                 options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-            // Add services to the container.
             builder.Services.AddScoped<IR2Service, R2Service>();
 
             builder.Services.AddCors(options =>
@@ -33,68 +28,86 @@ namespace ProjectTviEn
                     builder => builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
             });
 
-            // --- REDIS CACHE (Scaling) ---
-            // Kết nối vào Docker Redis cổng 6379. 
-            // Nếu Redis chưa chạy, hệ thống vẫn hoạt động bình thường (chỉ chậm hơn).
             var redisConnection = (builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379") + ",abortConnect=false";
             builder.Services.AddStackExchangeRedisCache(options =>
             {
                 options.Configuration = redisConnection;
-                options.InstanceName = "tvien:"; // Prefix cho mọi cache key
+                options.InstanceName = "tvien:";
             });
 
-            // Đăng ký IConnectionMultiplexer để dùng các lệnh Redis nâng cao (như Queue)
             builder.Services.AddSingleton<StackExchange.Redis.IConnectionMultiplexer>(
                 StackExchange.Redis.ConnectionMultiplexer.Connect(redisConnection)
             );
-
 
             builder.Services.AddControllers()
                 .AddJsonOptions(options =>
                 {
                     options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
                 });
+
             builder.Services.AddEndpointsApiExplorer();
-            builder.Services.AddSwaggerGen(c =>
-            {
-                c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
-                {
-                    Title = "TviEn Streaming API",
-                    Version = "v1",
-                    Description = "API quản lý phim, upload, transcoding và streaming cho nền tảng TviEn"
-                });
-            });
+            builder.Services.AddSwaggerGen();
 
             var app = builder.Build();
 
-            // Tự động chạy Migration để tạo bảng trên Supabase (Cloud) nếu chưa có
-            using (var scope = app.Services.CreateScope())
+            try 
             {
-                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-                db.Database.Migrate();
+                using (var scope = app.Services.CreateScope())
+                {
+                    var services = scope.ServiceProvider;
+                    var db = services.GetRequiredService<AppDbContext>();
+                    
+                    Console.WriteLine("[INFO] Migrating database...");
+                    db.Database.Migrate();
+
+                    Console.WriteLine("[INFO] Seeding data...");
+                    await ProjectTviEn.Data.DataSeeder.SeedAsync(db);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] Startup failed: {ex.Message}");
             }
 
-            // Swagger luôn hiển thị (kể cả Production)
             app.UseSwagger();
             app.UseSwaggerUI(c =>
             {
                 c.SwaggerEndpoint("/swagger/v1/swagger.json", "TviEn API v1");
-                c.RoutePrefix = string.Empty; // Để rỗng thì truy cập vào trang web cái là thấy Swagger luôn!
-                c.DocumentTitle = "TviEn API Docs";
+                c.RoutePrefix = string.Empty;
             });
 
-            //app.UseHttpsRedirection();
-
             app.UseCors("AllowAll");
-
             app.UseAuthorization();
+            app.UseHttpMetrics();
+            app.MapMetrics();
 
-            // --- BƯỚC MỚI: KÍCH HOẠT PROMETHEUS METRICS ---
-            app.UseHttpMetrics(); // Tự động đo lường thời gian phản hồi của các API
-            app.MapMetrics();     // Phơi bày cổng /metrics cho Prometheus thu thập
+            app.MapPost("/api/admin/seed", async (AppDbContext db) =>
+            {
+                try {
+                    if (!await db.Genres.AnyAsync()) {
+                        db.Genres.AddRange(new Genre { Name = "Hành Động", Slug = "hanh-dong" }, new Genre { Name = "Viễn Tưởng", Slug = "vien-tuong" });
+                    }
+                    if (!await db.Persons.AnyAsync())
+                    {
+                        db.Persons.AddRange(
+                            new Person { Id = "christopher-nolan", FullName = "Christopher Nolan", Slug = "christopher-nolan", Gender = 1, Nationality = "Anh" },
+                            new Person { Id = "cillian-murphy", FullName = "Cillian Murphy", Slug = "cillian-murphy", Gender = 1, Nationality = "Ireland" }
+                        );
+                    }
+                    if (!await db.Movies.AnyAsync()) {
+                        db.Movies.Add(new Movie { Id = "m001", Title = "Interstellar", Slug = "interstellar", ReleaseYear = 2014 });
+                    }
+                    if (!await db.Users.AnyAsync()) {
+                        db.Users.Add(new User { UserId = "u001", GoogleId = "admin_seed", Email = "admin@tvien.com", DisplayName = "Admin", RoleId = 1 });
+                    }
+                    await db.SaveChangesAsync();
+                    return Results.Ok("Seed thành công!");
+                } catch (Exception ex) {
+                    return Results.BadRequest($"Lỗi Seed: {ex.Message}");
+                }
+            });
 
             app.MapControllers();
-
             app.Run();
         }
     }

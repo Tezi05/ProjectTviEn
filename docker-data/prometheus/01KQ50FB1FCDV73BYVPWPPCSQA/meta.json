@@ -1,0 +1,18 @@
+{
+	"ulid": "01KQ50FB1FCDV73BYVPWPPCSQA",
+	"minTime": 1777134745988,
+	"maxTime": 1777140000000,
+	"stats": {
+		"numSamples": 50349,
+		"numFloatSamples": 50349,
+		"numSeries": 414,
+		"numChunks": 497
+	},
+	"compaction": {
+		"level": 1,
+		"sources": [
+			"01KQ50FB1FCDV73BYVPWPPCSQA"
+		]
+	},
+	"version": 1
+}

@@ -49,6 +49,7 @@ namespace ProjectTviEn.Controllers.Admin
             }
 
             var movies = await _context.Movies
+                .Where(m => !m.IsDeleted)
                 .Select(m => new {
                     m.Id,
                     m.Title,
@@ -68,6 +69,29 @@ namespace ProjectTviEn.Controllers.Admin
             await _cache.SetStringAsync(MoviesCacheKey, json, CacheOptions);
 
             return Ok(movies);
+        }
+
+        // GET: api/admin/Movies/search?keyword=mai&limit=10
+        [HttpGet("search")]
+        public async Task<IActionResult> SearchMovies([FromQuery] string keyword = "", [FromQuery] int limit = 10)
+        {
+            var q = _context.Movies.Where(m => !m.IsDeleted);
+            if (!string.IsNullOrWhiteSpace(keyword))
+                q = q.Where(m => m.Title.ToLower().Contains(keyword.ToLower()));
+            var results = await q
+                .OrderBy(m => m.Title)
+                .Take(limit)
+                .Select(m => new { m.Id, m.Title, m.PosterUrl, m.Slug })
+                .ToListAsync();
+            return Ok(results);
+        }
+
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetMovie(string id)
+        {
+            var movie = await _context.Movies.FindAsync(id);
+            if (movie == null) return NotFound($"Movie '{id}' not found");
+            return Ok(movie);
         }
 
         [HttpDelete("{id}")]

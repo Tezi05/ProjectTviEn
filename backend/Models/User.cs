@@ -3,8 +3,9 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace ProjectTviEn.Models
 {
-    public class User
+    public class User : ISoftDelete
     {
+        public bool IsDeleted { get; set; } = false;
         [Key]
         [MaxLength(50)]
         public string UserId { get; set; } = Guid.NewGuid().ToString("N");

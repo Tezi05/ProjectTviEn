@@ -2,8 +2,9 @@ using System.ComponentModel.DataAnnotations;
 
 namespace ProjectTviEn.Models
 {
-    public class Genre
+    public class Genre : ISoftDelete
     {
+        public bool IsDeleted { get; set; } = false;
         [Key]
         public int GenreId { get; set; }
 

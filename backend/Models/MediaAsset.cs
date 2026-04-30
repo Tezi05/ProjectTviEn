@@ -11,18 +11,18 @@ namespace ProjectTviEn.Models
 
         [Required]
         [MaxLength(50)]
-        public string MovieId { get; set; }
+        public string MovieId { get; set; } = string.Empty;
         
         [ForeignKey("MovieId")]
-        public Movie Movie { get; set; }
+        public Movie? Movie { get; set; }
 
         [Required]
         [MaxLength(50)]
-        public string Type { get; set; } // raw, variant, thumb, subtitle
+        public string Type { get; set; } = "raw"; // raw, variant, thumb, subtitle
 
         [Required]
         [MaxLength(1000)]
-        public string Path { get; set; }
+        public string Path { get; set; } = string.Empty;
 
         [MaxLength(50)]
         public string? Quality { get; set; }

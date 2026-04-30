@@ -1,0 +1,21 @@
+{
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/bower_components": true,
+    "**/*.code-search": true,
+    "**/bin": true,
+    "**/obj": true,
+    "**/.next": true
+  },
+  "files.exclude": {
+    "**/.git": true,
+    "**/.DS_Store": true,
+    "**/bin": true,
+    "**/obj": true,
+    "**/.next": true
+  },
+  "typescript.disableAutomaticTypeAcquisition": true,
+  "csharp.suppressDotnetRestoreMessages": true,
+  "omnisharp.enableImportCompletion": false,
+  "omnisharp.maxProjectResults": 250
+}

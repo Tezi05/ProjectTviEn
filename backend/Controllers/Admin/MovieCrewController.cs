@@ -26,7 +26,7 @@ namespace ProjectTviEn.Controllers.Admin
                     mc.Id,
                     mc.Role,
                     mc.CharacterName,
-                    Person = new { mc.Person.PersonId, mc.Person.FullName, mc.Person.ProfilePhotoUrl }
+                    Person = new { mc.Person.Id, mc.Person.FullName, AvatarUrl = mc.Person.AvatarUrl }
                 })
                 .ToListAsync();
             return Ok(crew);

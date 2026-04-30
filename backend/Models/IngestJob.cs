@@ -11,10 +11,10 @@ namespace ProjectTviEn.Models
 
         [Required]
         [MaxLength(50)]
-        public string MovieId { get; set; }
+        public string MovieId { get; set; } = string.Empty;
 
         [ForeignKey("MovieId")]
-        public Movie Movie { get; set; }
+        public Movie? Movie { get; set; }
 
         [MaxLength(50)]
         public string Status { get; set; } = "pending"; // pending, queued, processing, done, failed

@@ -40,6 +40,9 @@ namespace ProjectTviEn.Migrations
                     b.Property<int>("EpisodeNumber")
                         .HasColumnType("integer");
 
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("MovieId")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -66,6 +69,9 @@ namespace ProjectTviEn.Migrations
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("GenreId"));
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -202,6 +208,9 @@ namespace ProjectTviEn.Migrations
                     b.Property<float?>("ImdbScore")
                         .HasColumnType("real");
 
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Language")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
@@ -234,6 +243,12 @@ namespace ProjectTviEn.Migrations
                     b.Property<string>("TrailerUrl")
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
+
+                    b.Property<int>("WeeklyViews")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("WeeklyViewsResetWeek")
+                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 
@@ -297,37 +312,43 @@ namespace ProjectTviEn.Migrations
 
             modelBuilder.Entity("ProjectTviEn.Models.Person", b =>
                 {
-                    b.Property<string>("PersonId")
+                    b.Property<string>("Id")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
+
+                    b.Property<string>("AvatarUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
 
                     b.Property<string>("Biography")
                         .HasColumnType("text");
 
-                    b.Property<DateOnly?>("BirthDate")
-                        .HasColumnType("date");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly?>("Dob")
+                        .HasColumnType("date");
 
                     b.Property<string>("FullName")
                         .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
 
-                    b.Property<string>("Nationality")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                    b.Property<byte?>("Gender")
+                        .HasColumnType("smallint");
 
-                    b.Property<string>("ProfilePhotoUrl")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Nationality")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
 
                     b.Property<string>("Slug")
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
 
-                    b.HasKey("PersonId");
+                    b.HasKey("Id");
 
                     b.HasIndex("Slug")
                         .IsUnique();
@@ -467,6 +488,9 @@ namespace ProjectTviEn.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
                     b.Property<int>("RoleId")
                         .HasColumnType("integer");
 
@@ -498,6 +522,9 @@ namespace ProjectTviEn.Migrations
                     b.Property<string>("EpisodeId")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
 
                     b.Property<bool>("IsEncrypted")
                         .HasColumnType("boolean");

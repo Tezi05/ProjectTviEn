@@ -4,8 +4,9 @@ using System.ComponentModel.DataAnnotations;
 
 namespace ProjectTviEn.Models
 {
-    public class Movie
+    public class Movie : ISoftDelete
     {
+        public bool IsDeleted { get; set; } = false;
         [Key]
         [MaxLength(50)]
         [JsonPropertyName("movieId")]

@@ -77,7 +77,7 @@ namespace ProjectTviEn.Services
             await _s3Client.DeleteObjectsAsync(DeleteRequest);
         }    
 
-        public async Task<string> GetFileContentAsync(string objectKey){
+        public async Task<string?> GetFileContentAsync(string objectKey){
             try 
             {
                 var request = new GetObjectRequest
