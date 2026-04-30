@@ -73,26 +73,54 @@ namespace ProjectTviEn.Data
             // 6. Junctions (Gán linh tinh cho vui)
             if (!await context.MovieGenres.AnyAsync())
             {
+                var movies = await context.Movies.ToListAsync();
                 var genres = await context.Genres.ToListAsync();
-                context.MovieGenres.AddRange(
-                    new MovieGenre { MovieId = "m1", GenreId = genres[1].GenreId }, // Mai - Tình cảm
-                    new MovieGenre { MovieId = "m2", GenreId = genres[4].GenreId }, // Oppenheimer - Sci-fi
-                    new MovieGenre { MovieId = "m3", GenreId = genres[0].GenreId }, // Inception - Hành động
-                    new MovieGenre { MovieId = "m4", GenreId = genres[4].GenreId }, // Iron Man - Sci-fi
-                    new MovieGenre { MovieId = "m5", GenreId = genres[3].GenreId }  // Chị Bầu - Hài
-                );
-                await context.SaveChangesAsync();
+                
+                if (movies.Count >= 5 && genres.Count >= 5)
+                {
+                    context.MovieGenres.AddRange(
+                        new MovieGenre { MovieId = movies[0].Id, GenreId = genres[1].GenreId }, // Phim 1 - Tình cảm
+                        new MovieGenre { MovieId = movies[1].Id, GenreId = genres[4].GenreId }, // Phim 2 - Sci-fi
+                        new MovieGenre { MovieId = movies[2].Id, GenreId = genres[0].GenreId }, // Phim 3 - Hành động
+                        new MovieGenre { MovieId = movies[3].Id, GenreId = genres[4].GenreId }, // Phim 4 - Sci-fi
+                        new MovieGenre { MovieId = movies[4].Id, GenreId = genres[3].GenreId }  // Phim 5 - Hài
+                    );
+                    await context.SaveChangesAsync();
+                }
             }
 
             if (!await context.MovieCrews.AnyAsync())
             {
-                context.MovieCrews.AddRange(
-                    new MovieCrew { MovieId = "m1", PersonId = "p1", Role = "Director" }, // Trấn Thành đạo diễn Mai
-                    new MovieCrew { MovieId = "m2", PersonId = "p2", Role = "Director" }, // Nolan đạo diễn Oppenheimer
-                    new MovieCrew { MovieId = "m2", PersonId = "p3", Role = "Actor", CharacterName = "J. Robert Oppenheimer" },
-                    new MovieCrew { MovieId = "m4", PersonId = "p5", Role = "Actor", CharacterName = "Tony Stark" },
-                    new MovieCrew { MovieId = "m5", PersonId = "p4", Role = "Actor", CharacterName = "Huyền" }
-                );
+                var movies = await context.Movies.ToListAsync();
+                var persons = await context.Persons.ToListAsync();
+
+                if (movies.Count >= 5 && persons.Count >= 5)
+                {
+                    context.MovieCrews.AddRange(
+                        new MovieCrew { MovieId = movies[0].Id, PersonId = persons[0].Id, Role = "Director" },
+                        new MovieCrew { MovieId = movies[1].Id, PersonId = persons[1].Id, Role = "Director" },
+                        new MovieCrew { MovieId = movies[1].Id, PersonId = persons[2].Id, Role = "Actor", CharacterName = "Lead" },
+                        new MovieCrew { MovieId = movies[3].Id, PersonId = persons[4].Id, Role = "Actor", CharacterName = "Hero" },
+                        new MovieCrew { MovieId = movies[4].Id, PersonId = persons[3].Id, Role = "Actor", CharacterName = "Supporting" }
+                    );
+                    await context.SaveChangesAsync();
+                }
+            }
+
+            // 7. Videos (Để xem được phim ngay lập tức)
+            if (!await context.Videos.AnyAsync())
+            {
+                var movies = await context.Movies.ToListAsync();
+                foreach (var m in movies)
+                {
+                    context.Videos.Add(new Video {
+                        VideoId = Guid.NewGuid().ToString("N"),
+                        MovieId = m.Id,
+                        MasterPlaylistUrl = "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8", // Video demo m3u8 cực xịn
+                        Resolution = "1080p",
+                        IsDeleted = false
+                    });
+                }
                 await context.SaveChangesAsync();
             }
         }

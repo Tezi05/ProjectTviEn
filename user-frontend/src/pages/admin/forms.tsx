@@ -13,6 +13,17 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   return <div><label className={lbl}>{label}</label>{children}</div>;
 }
 
+const toSlug = (text: string) => {
+  let str = text.toLowerCase();
+  str = str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  str = str.replace(/[đĐ]/g, 'd');
+  str = str.replace(/([^0-9a-z-\s])/g, '');
+  str = str.replace(/(\s+)/g, '-');
+  str = str.replace(/-+/g, '-');
+  str = str.replace(/^-+|-+$/g, '');
+  return str;
+};
+
 // ── AddModal ───────────────────────────────────────────────────────────────
 interface ModalProps { title: string; onClose: () => void; onSubmit: () => Promise<void>; children: React.ReactNode; }
 
@@ -72,8 +83,8 @@ export function AddGenreForm({ onSaved, onClose }: { onSaved: () => void; onClos
   };
   return (
     <AddModal title="Thêm Genre" onClose={onClose} onSubmit={submit}>
-      <Field label="Name *"><input className={inp} value={f.name} onChange={e => setF({ ...f, name: e.target.value, slug: e.target.value.toLowerCase().replace(/\s+/g, '-') })} placeholder="Hành động" /></Field>
-      <Field label="Slug"><input className={inp} value={f.slug} onChange={e => setF({ ...f, slug: e.target.value })} placeholder="hanh-dong" /></Field>
+      <Field label="Name *"><input className={inp} value={f.name} onChange={e => setF({ ...f, name: e.target.value, slug: toSlug(e.target.value) })} placeholder="Hành động" /></Field>
+      <Field label="Slug"><input className={inp} value={f.slug} onChange={e => setF({ ...f, slug: toSlug(e.target.value) })} placeholder="hanh-dong" /></Field>
     </AddModal>
   );
 }
@@ -91,8 +102,8 @@ export function AddPersonForm({ onSaved, onClose }: { onSaved: () => void; onClo
   };
   return (
     <AddModal title="Thêm Person" onClose={onClose} onSubmit={submit}>
-      <Field label="Tên đầy đủ *"><input className={inp} value={f.fullName} onChange={e => setF({ ...f, fullName: e.target.value })} placeholder="Christopher Nolan" /></Field>
-      <Field label="Slug"><input className={inp} value={f.slug} onChange={e => setF({ ...f, slug: e.target.value })} placeholder="christopher-nolan" /></Field>
+      <Field label="Tên đầy đủ *"><input className={inp} value={f.fullName} onChange={e => setF({ ...f, fullName: e.target.value, slug: toSlug(e.target.value) })} placeholder="Christopher Nolan" /></Field>
+      <Field label="Slug"><input className={inp} value={f.slug} onChange={e => setF({ ...f, slug: toSlug(e.target.value) })} placeholder="christopher-nolan" /></Field>
       <div className="grid grid-cols-2 gap-4">
         <Field label="Ngày sinh"><input type="date" className={inp} value={f.dob} onChange={e => setF({ ...f, dob: e.target.value })} /></Field>
         <Field label="Giới tính">

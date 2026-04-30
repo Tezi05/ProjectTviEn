@@ -84,26 +84,26 @@ namespace ProjectTviEn
             app.MapPost("/api/admin/seed", async (AppDbContext db) =>
             {
                 try {
-                    if (!await db.Genres.AnyAsync()) {
-                        db.Genres.AddRange(new Genre { Name = "Hành Động", Slug = "hanh-dong" }, new Genre { Name = "Viễn Tưởng", Slug = "vien-tuong" });
-                    }
-                    if (!await db.Persons.AnyAsync())
+                    // --- 1. Tạo dữ liệu mẫu nếu bảng trống ---
+                    await ProjectTviEn.Data.DataSeeder.SeedAsync(db);
+
+                    // --- 2. Sửa lỗi Slug cho các phim cũ đang bị trống ---
+                    var moviesToFix = await db.Movies.Where(m => string.IsNullOrEmpty(m.Slug)).ToListAsync();
+                    foreach (var m in moviesToFix)
                     {
-                        db.Persons.AddRange(
-                            new Person { Id = "christopher-nolan", FullName = "Christopher Nolan", Slug = "christopher-nolan", Gender = 1, Nationality = "Anh" },
-                            new Person { Id = "cillian-murphy", FullName = "Cillian Murphy", Slug = "cillian-murphy", Gender = 1, Nationality = "Ireland" }
-                        );
+                        m.Slug = m.Title.ToLower()
+                            .Normalize(System.Text.NormalizationForm.FormD)
+                            .Replace("đ", "d").Replace("Đ", "d");
+                        // Logic đơn giản để fix nhanh trong DB
+                        m.Slug = System.Text.RegularExpressions.Regex.Replace(m.Slug, @"[\u0300-\u036f]", "");
+                        m.Slug = System.Text.RegularExpressions.Regex.Replace(m.Slug, @"[^a-z0-9\s-]", "");
+                        m.Slug = System.Text.RegularExpressions.Regex.Replace(m.Slug, @"\s+", "-").Trim('-');
                     }
-                    if (!await db.Movies.AnyAsync()) {
-                        db.Movies.Add(new Movie { Id = "m001", Title = "Interstellar", Slug = "interstellar", ReleaseYear = 2014 });
-                    }
-                    if (!await db.Users.AnyAsync()) {
-                        db.Users.Add(new User { UserId = "u001", GoogleId = "admin_seed", Email = "admin@tvien.com", DisplayName = "Admin", RoleId = 1 });
-                    }
+                    
                     await db.SaveChangesAsync();
-                    return Results.Ok("Seed thành công!");
+                    return Results.Ok($"Đã cập nhật dữ liệu mẫu và sửa {moviesToFix.Count} phim bị thiếu Slug!");
                 } catch (Exception ex) {
-                    return Results.BadRequest($"Lỗi Seed: {ex.Message}");
+                    return Results.BadRequest($"Lỗi: {ex.Message}");
                 }
             });
 

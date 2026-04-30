@@ -28,12 +28,13 @@ function getISOWeek(date: Date): number {
 const CURRENT_WEEK = getISOWeek(new Date());
  
 function normalizeMovie(d: any): Movie {
+  const url = d.posterUrl ?? d.PosterUrl;
   return {
     id:                   d.id               ?? d.Id               ?? '',
     title:                d.title            ?? d.Title            ?? 'Untitled',
     slug:                 d.slug             ?? d.Slug             ?? '',
     description:          d.description      ?? d.Description      ?? '',
-    posterUrl:            d.posterUrl        ?? d.PosterUrl,
+    posterUrl:            url ? url.replace('5113', '5113') : undefined,
     releaseYear:          d.releaseYear      ?? d.ReleaseYear      ?? 2024,
     weeklyViews:          d.weeklyViews      ?? d.WeeklyViews      ?? 0,
     weeklyViewsResetWeek: d.weeklyViewsResetWeek ?? d.WeeklyViewsResetWeek ?? 0,
@@ -62,14 +63,14 @@ const Navbar = memo(({ activeTab, onTabChange, onSearchOpen }: any) => (
 Navbar.displayName = 'Navbar';
  
 // ─── HoverPlayer (Super Optimized - Lazy Video) ───────────────────────────────
-const HoverPlayer = memo(({ id, title, posterUrl }: Movie) => {
+const HoverPlayer = memo(({ id, slug, title, posterUrl }: Movie) => {
   const router = useRouter();
   const [isHovered, setIsHovered] = useState(false);
   const previewUrl = `${WORKER_URL}/video/${id}/preview.mp4`;
  
   return (
     <div
-      onClick={() => router.push(`/watch/${id}`)}
+      onClick={() => router.push(`/watch/${slug || id}`)}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       className="flex-none w-[240px] aspect-[2/3] relative group overflow-hidden bg-[#201f1f] cursor-pointer rounded-sm"
@@ -103,11 +104,11 @@ const HoverPlayer = memo(({ id, title, posterUrl }: Movie) => {
 HoverPlayer.displayName = 'HoverPlayer';
  
 // ─── ContinueCard (Optimized) ─────────────────────────────────────────────────
-const ContinueCard = memo(({ title, imgUrl, progress, movieId }: { title: string; imgUrl: string; progress: number; movieId?: string }) => {
+const ContinueCard = memo(({ title, imgUrl, progress, movieId, slug }: { title: string; imgUrl: string; progress: number; movieId?: string; slug?: string }) => {
   const router = useRouter();
   return (
     <div 
-      onClick={() => movieId && router.push(`/watch/${movieId}`)}
+      onClick={() => (slug || movieId) && router.push(`/watch/${slug || movieId}`)}
       className="flex-none w-[420px] aspect-video relative group overflow-hidden bg-[#201f1f] cursor-pointer rounded-sm"
     >
       <img src={imgUrl} alt={title} loading="lazy" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-100" />
@@ -243,7 +244,7 @@ export default function CinemaApp() {
         </main>
  
         <footer className="w-full py-24 bg-[#0A0A0A] mt-24 border-t border-white/5 text-center">
-          <p className="text-[10px] tracking-[0.4em] uppercase text-white/10">© 2024 TVIEN. THE VOID IS CALLING.</p>
+          <p className="text-[10px] tracking-[0.4em] uppercase text-white/10">© 2026 TVIEN. THE VOID IS CALLING.</p>
         </footer>
       </div>
     </>
