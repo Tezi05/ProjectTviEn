@@ -48,11 +48,11 @@ namespace ProjectTviEn.Data
             if (!await context.Movies.AnyAsync())
             {
                 context.Movies.AddRange(
-                    new Movie { Id = "m1", Title = "Mai", Slug = "mai", Description = "Phim của Trấn Thành", ReleaseYear = 2024 },
-                    new Movie { Id = "m2", Title = "Oppenheimer", Slug = "oppenheimer", Description = "Bom tấn của Nolan", ReleaseYear = 2023 },
-                    new Movie { Id = "m3", Title = "Inception", Slug = "inception", Description = "Kẻ trộm giấc mơ", ReleaseYear = 2010 },
-                    new Movie { Id = "m4", Title = "Iron Man", Slug = "iron-man", Description = "Người sắt", ReleaseYear = 2008 },
-                    new Movie { Id = "m5", Title = "Gặp Lại Chị Bầu", Slug = "gap-lai-chi-bau", Description = "Phim Tết 2024", ReleaseYear = 2024 }
+                    new Movie { Id = 1, Title = "Mai", Slug = "mai", Description = "Phim của Trấn Thành", ReleaseYear = 2024, Status = 1 },
+                    new Movie { Id = 2, Title = "Oppenheimer", Slug = "oppenheimer", Description = "Bom tấn của Nolan", ReleaseYear = 2023, Status = 1 },
+                    new Movie { Id = 3, Title = "Inception", Slug = "inception", Description = "Kẻ trộm giấc mơ", ReleaseYear = 2010, Status = 1 },
+                    new Movie { Id = 4, Title = "Iron Man", Slug = "iron-man", Description = "Người sắt", ReleaseYear = 2008, Status = 1 },
+                    new Movie { Id = 5, Title = "Gặp Lại Chị Bầu", Slug = "gap-lai-chi-bau", Description = "Phim Tết 2024", ReleaseYear = 2024, Status = 1 }
                 );
                 await context.SaveChangesAsync();
             }
@@ -97,11 +97,11 @@ namespace ProjectTviEn.Data
                 if (movies.Count >= 5 && persons.Count >= 5)
                 {
                     context.MovieCrews.AddRange(
-                        new MovieCrew { MovieId = movies[0].Id, PersonId = persons[0].Id, Role = "Director" },
-                        new MovieCrew { MovieId = movies[1].Id, PersonId = persons[1].Id, Role = "Director" },
-                        new MovieCrew { MovieId = movies[1].Id, PersonId = persons[2].Id, Role = "Actor", CharacterName = "Lead" },
-                        new MovieCrew { MovieId = movies[3].Id, PersonId = persons[4].Id, Role = "Actor", CharacterName = "Hero" },
-                        new MovieCrew { MovieId = movies[4].Id, PersonId = persons[3].Id, Role = "Actor", CharacterName = "Supporting" }
+                        new MovieCrew { MovieId = movies[0].Id, PersonId = persons[0].Id, RoleId = 1 }, // Director
+                        new MovieCrew { MovieId = movies[1].Id, PersonId = persons[1].Id, RoleId = 1 }, // Director
+                        new MovieCrew { MovieId = movies[1].Id, PersonId = persons[2].Id, RoleId = 2, CharacterName = "Lead" },
+                        new MovieCrew { MovieId = movies[3].Id, PersonId = persons[4].Id, RoleId = 2, CharacterName = "Hero" },
+                        new MovieCrew { MovieId = movies[4].Id, PersonId = persons[3].Id, RoleId = 2, CharacterName = "Supporting" }
                     );
                     await context.SaveChangesAsync();
                 }
@@ -114,11 +114,12 @@ namespace ProjectTviEn.Data
                 foreach (var m in movies)
                 {
                     context.Videos.Add(new Video {
-                        VideoId = Guid.NewGuid().ToString("N"),
+                        VideoId = Guid.NewGuid(),
                         MovieId = m.Id,
                         MasterPlaylistUrl = "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8", // Video demo m3u8 cực xịn
                         Resolution = "1080p",
-                        IsDeleted = false
+                        IsDeleted = false,
+                        CreatedAt = DateTime.UtcNow
                     });
                 }
                 await context.SaveChangesAsync();

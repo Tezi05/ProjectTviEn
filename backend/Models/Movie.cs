@@ -7,14 +7,16 @@ namespace ProjectTviEn.Models
     public class Movie : ISoftDelete
     {
         public bool IsDeleted { get; set; } = false;
+        
         [Key]
-        [MaxLength(50)]
-        [JsonPropertyName("movieId")]
-        public string Id { get; set; } = string.Empty;
+        public int Id { get; set; }
 
         [Required]
         [MaxLength(255)]
         public string Title { get; set; } = string.Empty;
+
+        [MaxLength(255)]
+        public string? OriginalTitle { get; set; }
 
         [Required]
         [MaxLength(255)]
@@ -25,47 +27,47 @@ namespace ProjectTviEn.Models
         [MaxLength(1000)]
         public string? PosterUrl { get; set; }
 
-        public int? Duration { get; set; } // Giây
-
-        // --- Thông tin bổ sung ---
-        public int? ReleaseYear { get; set; }
-
-        [MaxLength(100)]
-        public string? Country { get; set; } // "USA", "Vietnam"...
-
-        [MaxLength(50)]
-        public string? Language { get; set; } // "en", "vi"...
+        [MaxLength(1000)]
+        public string? BackdropUrl { get; set; }
 
         [MaxLength(1000)]
         public string? TrailerUrl { get; set; }
 
-        [MaxLength(20)]
-        public string MovieType { get; set; } = "movie"; // "movie" hoặc "series"
+        public int? ReleaseYear { get; set; }
 
-        public float? ImdbScore { get; set; } // 0.0 - 10.0
+        public int? Duration { get; set; } // Đơn vị: Phút
 
-        public int? RottenTomatoesScore { get; set; } // 0 - 100 (%)
+        [MaxLength(10)]
+        public string? AgeRating { get; set; } // [C18], [13+]...
 
+        public int ViewCount { get; set; } = 0;
+
+        // --- Quản trị & Audit ---
+        public int Status { get; set; } = 0; // 0: Nháp, 1: Hiển thị
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime? UpdatedAt { get; set; }
 
-        // --- Hệ thống theo dõi lượt xem (Trending) ---
-        public int WeeklyViews { get; set; } = 0;
-        public int WeeklyViewsResetWeek { get; set; } = 0;
-
-        // AES-128 Encryption Key — không bao giờ trả về Frontend
-        public string? EncryptionKey { get; set; }
-
-        // Navigation Properties (cũ)
+        // Navigation Properties
         public ICollection<MediaAsset> MediaAssets { get; set; } = new List<MediaAsset>();
         public ICollection<IngestJob> IngestJobs { get; set; } = new List<IngestJob>();
         public StreamInfo? Stream { get; set; }
-
-        // Navigation Properties (mới)
         public ICollection<MovieGenre> MovieGenres { get; set; } = new List<MovieGenre>();
         public ICollection<MovieCrew> MovieCrews { get; set; } = new List<MovieCrew>();
         public ICollection<Episode> Episodes { get; set; } = new List<Episode>();
         public ICollection<Video> Videos { get; set; } = new List<Video>();
         public ICollection<Review> Reviews { get; set; } = new List<Review>();
         public ICollection<Watchlist> Watchlists { get; set; } = new List<Watchlist>();
+
+        // Các trường hỗ trợ nhận dữ liệu từ Frontend (Không lưu trực tiếp vào bảng Movies)
+        [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+        public List<int>? GenreIds { get; set; }
+        
+        [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+        public List<MovieCrewDto>? CrewMembers { get; set; }
+    }
+
+    public class MovieCrewDto {
+        public string PersonId { get; set; } = string.Empty;
+        public int RoleId { get; set; }
     }
 }

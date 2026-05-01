@@ -16,6 +16,7 @@ namespace ProjectTviEn.Models
 
         // --- Bảng nội dung mới ---
         public DbSet<Person> Persons { get; set; }
+        public DbSet<RoleInfo> RoleInfos { get; set; }
         public DbSet<MovieCrew> MovieCrews { get; set; }
         public DbSet<Genre> Genres { get; set; }
         public DbSet<MovieGenre> MovieGenres { get; set; }
@@ -59,11 +60,18 @@ namespace ProjectTviEn.Models
             modelBuilder.Entity<MovieGenre>()
                 .HasKey(mg => new { mg.MovieId, mg.GenreId });
 
-            // Data seed: Tạo sẵn 3 Roles mặc định
+            // Data seed: Roles người dùng
             modelBuilder.Entity<Role>().HasData(
                 new Role { RoleId = 1, Name = "Admin" },
                 new Role { RoleId = 2, Name = "VIP" },
                 new Role { RoleId = 3, Name = "Member" }
+            );
+
+            // Data seed: RoleInfo nhân sự phim
+            modelBuilder.Entity<RoleInfo>().HasData(
+                new RoleInfo { Id = 1, Name = "Đạo diễn" },
+                new RoleInfo { Id = 2, Name = "Diễn viên" },
+                new RoleInfo { Id = 3, Name = "Biên kịch" }
             );
         }
     }

@@ -22,7 +22,7 @@ namespace ProjectTviEn.Controllers.Public
                 .OrderByDescending(w => w.AddedAt)
                 .Select(w => new {
                     w.WatchlistId, w.AddedAt,
-                    Movie = new { w.Movie.Id, w.Movie.Title, w.Movie.PosterUrl, w.Movie.ImdbScore }
+                    Movie = new { w.Movie.Id, w.Movie.Title, w.Movie.PosterUrl }
                 })
                 .ToListAsync();
             return Ok(list);

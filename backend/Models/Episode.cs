@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -6,14 +7,14 @@ namespace ProjectTviEn.Models
     public class Episode : ISoftDelete
     {
         public bool IsDeleted { get; set; } = false;
+        
         [Key]
-        [MaxLength(50)]
-        public string EpisodeId { get; set; } = Guid.NewGuid().ToString("N");
+        public Guid EpisodeId { get; set; } = Guid.NewGuid();
 
         [Required]
-        [MaxLength(50)]
-        public string MovieId { get; set; } = string.Empty;
+        public int MovieId { get; set; }
 
+        [JsonIgnore]
         [ForeignKey("MovieId")]
         public Movie Movie { get; set; } = null!;
 
@@ -29,6 +30,11 @@ namespace ProjectTviEn.Models
         public int? Duration { get; set; } // Đơn vị: giây
 
         public DateOnly? AirDate { get; set; }
+
+        // --- Quản trị & Audit ---
+        public int Status { get; set; } = 0; // 0: Nháp, 1: Hiển thị
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime? UpdatedAt { get; set; }
 
         // Navigation
         public ICollection<Video> Videos { get; set; } = new List<Video>();

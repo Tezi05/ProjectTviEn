@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -6,9 +7,9 @@ namespace ProjectTviEn.Models
     public class MovieGenre
     {
         [Required]
-        [MaxLength(50)]
-        public string MovieId { get; set; } = string.Empty;
+        public int MovieId { get; set; }
 
+        [JsonIgnore]
         [ForeignKey("MovieId")]
         public Movie Movie { get; set; } = null!;
 

@@ -12,5 +12,15 @@ namespace ProjectTviEn.Services
         string GeneratePresignedDownloadUrl(string objectKey);
         Task DeleteFilesWithPrefix(string prefix);
         Task<string?> GetFileContentAsync(string objectKey);
+        
+        /// <summary>
+        /// Nén ảnh, Resize và Upload lên R2
+        /// </summary>
+        Task<string> UploadImageAsync(Stream imageStream, string folder, string fileName, int? width = null, int? height = null);
+
+        /// <summary>
+        /// Upload file bất kỳ lên R2
+        /// </summary>
+        Task<bool> UploadFileAsync(string objectKey, Stream fileStream, string contentType);
     }
 }

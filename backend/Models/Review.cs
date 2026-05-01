@@ -16,8 +16,7 @@ namespace ProjectTviEn.Models
         public User User { get; set; } = null!;
 
         [Required]
-        [MaxLength(50)]
-        public string MovieId { get; set; } = string.Empty;
+        public int MovieId { get; set; }
 
         [ForeignKey("MovieId")]
         public Movie Movie { get; set; } = null!;

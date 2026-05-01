@@ -28,8 +28,9 @@ namespace ProjectTviEn.Controllers.Public
         /// API "Gác cổng" - Trả về AES-128 Key để giải mã video HLS.
         /// Chặn IDM, UC Browser, Cốc Cốc bằng cách kiểm tra Referer header.
         /// </summary>
-        [HttpGet("{movieId}")]
-        public async Task<IActionResult> GetMovieKey(string movieId){
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetVideoKey(string id)
+        {
             // --- BƯỚC 1: Chặn kẻ tải lậu bằng cách soi Referer ---
             var referer = Request.Headers["Referer"].ToString();
             
@@ -41,21 +42,51 @@ namespace ProjectTviEn.Controllers.Public
                 }
             }
 
-            // --- BƯỚC 2: Mở két sắt Database lấy chìa khóa của phim ---
-            var movie = await _db.Movies.FindAsync(movieId);
+            // --- BƯỚC 2: Mở két sắt Database lấy chìa khóa ---
+            Video? video = null;
 
-            if (movie == null || string.IsNullOrEmpty(movie.EncryptionKey)){
-                _logger.LogWarning("[!] Không tìm thấy EncryptionKey cho phim {MovieId}", movieId);
-                return NotFound("Không tìm thấy khóa cho bộ phim này.");
+            if (Guid.TryParse(id, out Guid videoGuid))
+            {
+                // 1. Thử tìm trực tiếp theo VideoId (Guid)
+                video = await _db.Videos.FindAsync(videoGuid);
+
+                // 2. Nếu không thấy, thử xem đây có phải là JobId không
+                if (video == null)
+                {
+                    var job = await _db.IngestJobs.AsNoTracking().FirstOrDefaultAsync(j => j.JobId == id);
+                    if (job != null)
+                    {
+                        if (job.EpisodeId.HasValue)
+                            video = await _db.Videos.FirstOrDefaultAsync(v => v.EpisodeId == job.EpisodeId && !v.IsDeleted);
+                        else
+                            video = await _db.Videos.FirstOrDefaultAsync(v => v.MovieId == job.MovieId && v.EpisodeId == null && !v.IsDeleted);
+                    }
+                }
+            }
+            
+            // 3. Nếu vẫn không thấy hoặc không phải Guid, thử tìm theo MovieId (int)
+            if (video == null && int.TryParse(id, out int movieId))
+            {
+                video = await _db.Videos.FirstOrDefaultAsync(v => v.MovieId == movieId && !v.IsDeleted);
+            }
+
+            if (video == null || string.IsNullOrEmpty(video.EncryptionKey)){
+                _logger.LogWarning("[!] Không tìm thấy EncryptionKey cho ID {Id}", id);
+                return NotFound("Không tìm thấy khóa cho video này.");
             }
 
             // --- BƯỚC 3: Trả chìa khóa về cho trình phát HLS (dạng nhị phân) ---
-            byte[] keyBytes = Convert.FromBase64String(movie.EncryptionKey);
-            
-            _logger.LogInformation("[🔑] Cấp khóa giải mã cho phim: {MovieId}", movieId);
-            
-            // Bắt buộc trả về dạng octet-stream thì HLS.js mới hiểu đây là file Key
-            return File(keyBytes, "application/octet-stream");
+            try 
+            {
+                byte[] keyBytes = Convert.FromBase64String(video.EncryptionKey);
+                _logger.LogInformation("[🔑] Cấp khóa giải mã cho video: {VideoId}", video.VideoId);
+                return File(keyBytes, "application/octet-stream");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi khi convert EncryptionKey từ Base64");
+                return StatusCode(500, "Lỗi định dạng khóa.");
+            }
         }
     }
 }

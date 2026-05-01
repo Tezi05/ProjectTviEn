@@ -17,14 +17,16 @@ namespace ProjectTviEn.Controllers.Admin
 
         // GET: api/admin/crew?movieId=xxx
         [HttpGet]
-        public async Task<IActionResult> GetByMovie([FromQuery] string movieId)
+        public async Task<IActionResult> GetByMovie([FromQuery] int movieId)
         {
             var crew = await _context.MovieCrews
                 .Where(mc => mc.MovieId == movieId)
                 .Include(mc => mc.Person)
+                .Include(mc => mc.RoleInfo)
                 .Select(mc => new {
                     mc.Id,
-                    mc.Role,
+                    Role = mc.RoleInfo.Name,
+                    mc.RoleId,
                     mc.CharacterName,
                     Person = new { mc.Person.Id, mc.Person.FullName, AvatarUrl = mc.Person.AvatarUrl }
                 })
@@ -36,7 +38,7 @@ namespace ProjectTviEn.Controllers.Admin
         [HttpPost]
         public async Task<IActionResult> Add([FromBody] MovieCrew crew)
         {
-            if (string.IsNullOrEmpty(crew.MovieId) || string.IsNullOrEmpty(crew.PersonId))
+            if (crew.MovieId <= 0 || string.IsNullOrEmpty(crew.PersonId))
                 return BadRequest("MovieId and PersonId are required");
 
             _context.MovieCrews.Add(crew);

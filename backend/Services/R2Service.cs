@@ -1,6 +1,9 @@
 using Amazon.S3;
 using Amazon.S3.Model;
 using Microsoft.Extensions.Configuration;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Processing;
+using SixLabors.ImageSharp.Formats.Webp;
 
 namespace ProjectTviEn.Services
 {
@@ -12,10 +15,10 @@ namespace ProjectTviEn.Services
 
         public R2Service(IConfiguration configuration){
             _configuration = configuration; // <--- Gán vào biến dùng chung
-            var accessKey = _configuration["R2:AccessKey"];
-            var secretKey = _configuration["R2:SecretKey"];
-            var serviceUrl = _configuration["R2:Endpoint"];
-            _bucketName = _configuration["R2:BucketName"];
+            var accessKey = _configuration["R2:AccessKey"] ?? "";
+            var secretKey = _configuration["R2:SecretKey"] ?? "";
+            var serviceUrl = _configuration["R2:Endpoint"] ?? "";
+            _bucketName = _configuration["R2:BucketName"] ?? "";
 
             var config = new AmazonS3Config
             {
@@ -94,6 +97,61 @@ namespace ProjectTviEn.Services
                 return null; // Return null if file doesn't exist
             }
         }
-        
+
+        public async Task<string> UploadImageAsync(Stream imageStream, string folder, string fileName, int? width = null, int? height = null)
+        {
+            // 1. Đảm bảo tên file kết thúc bằng .webp
+            string webpFileName = Path.ChangeExtension(fileName, ".webp");
+            string objectKey = $"{folder.TrimEnd('/')}/{webpFileName}";
+
+            using var image = await Image.LoadAsync(imageStream);
+
+            // 2. Resize nếu có yêu cầu (Giữ tỷ lệ)
+            if (width.HasValue || height.HasValue)
+            {
+                image.Mutate(x => x.Resize(new ResizeOptions
+                {
+                    Size = new Size(width ?? 0, height ?? 0),
+                    Mode = ResizeMode.Max // Không làm méo ảnh
+                }));
+            }
+
+            // 3. Nén sang WebP
+            using var outputStream = new MemoryStream();
+            var encoder = new WebpEncoder { Quality = 80 }; // Chất lượng 80 là cân bằng tốt nhất
+            await image.SaveAsWebpAsync(outputStream, encoder);
+            outputStream.Position = 0;
+
+            // 4. Upload lên R2
+            var putRequest = new PutObjectRequest
+            {
+                BucketName = _bucketName,
+                Key = objectKey,
+                InputStream = outputStream,
+                ContentType = "image/webp",
+                UseChunkEncoding = false  // ✅ Cloudflare R2 không hỗ trợ Chunked Streaming
+            };
+
+            await _s3Client.PutObjectAsync(putRequest);
+
+            return objectKey;
+        }
+
+        public async Task<bool> UploadFileAsync(string objectKey, Stream fileStream, string contentType)
+        {
+            var safeContentType = string.IsNullOrEmpty(contentType) ? "application/octet-stream" : contentType;
+            
+            var request = new PutObjectRequest
+            {
+                BucketName = _bucketName,
+                Key = objectKey,
+                InputStream = fileStream,
+                ContentType = safeContentType,
+                UseChunkEncoding = false  // ✅ Cloudflare R2 không hỗ trợ Chunked Streaming
+            };
+
+            var response = await _s3Client.PutObjectAsync(request);
+            return response.HttpStatusCode == System.Net.HttpStatusCode.OK;
+        }
     }
 }

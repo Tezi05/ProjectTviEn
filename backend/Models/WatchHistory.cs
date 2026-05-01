@@ -15,14 +15,12 @@ namespace ProjectTviEn.Models
         [ForeignKey("UserId")]
         public User User { get; set; } = null!;
 
-        [MaxLength(50)]
-        public string? MovieId { get; set; }
+        public int? MovieId { get; set; }
 
         [ForeignKey("MovieId")]
         public Movie? Movie { get; set; }
 
-        [MaxLength(50)]
-        public string? EpisodeId { get; set; }
+        public Guid? EpisodeId { get; set; }
 
         [ForeignKey("EpisodeId")]
         public Episode? Episode { get; set; }

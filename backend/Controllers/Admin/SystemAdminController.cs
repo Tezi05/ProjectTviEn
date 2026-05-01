@@ -91,6 +91,8 @@ namespace ProjectTviEn.Controllers.Admin
             object? entity = null;
             if (int.TryParse(id, out int intId)) {
                 entity = await _context.FindAsync(entityType, intId);
+            } else if (Guid.TryParse(id, out Guid guidId)) {
+                entity = await _context.FindAsync(entityType, guidId);
             } else {
                 entity = await _context.FindAsync(entityType, id);
             }
@@ -125,6 +127,8 @@ namespace ProjectTviEn.Controllers.Admin
             object? entity = null;
             if (int.TryParse(id, out int intIdForce)) {
                 entity = await _context.FindAsync(entityType, intIdForce);
+            } else if (Guid.TryParse(id, out Guid guidIdForce)) {
+                entity = await _context.FindAsync(entityType, guidIdForce);
             } else {
                 entity = await _context.FindAsync(entityType, id);
             }
@@ -148,6 +152,8 @@ namespace ProjectTviEn.Controllers.Admin
             object? entity = null;
             if (int.TryParse(id, out int intId))
                 entity = await _context.FindAsync(entityType, intId);
+            else if (Guid.TryParse(id, out Guid guidId))
+                entity = await _context.FindAsync(entityType, guidId);
             else
                 entity = await _context.FindAsync(entityType, id);
 

@@ -8,6 +8,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using ProjectTviEn.Models;
 using ProjectTviEn.Services;
+using ProjectTviEn.DTOs;
 
 namespace ProjectTviEn.Controllers.Admin
 {
@@ -31,14 +32,44 @@ namespace ProjectTviEn.Controllers.Admin
         [HttpGet]
         public async Task<IActionResult> GetMovies() {
             var camelCase = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
-            var cached = await _cache.GetStringAsync(MoviesCacheKey);
-            if (cached != null) return Ok(JsonSerializer.Deserialize<object>(cached, camelCase));
+            
+            // Xóa bỏ cache hoàn toàn để sửa lỗi dữ liệu cũ bị kẹt
+            await _cache.RemoveAsync(MoviesCacheKey); 
 
-            var movies = await _context.Movies.Where(m => !m.IsDeleted).Select(m => new {
-                m.Id, m.Title, m.Slug, m.PosterUrl, m.WeeklyViews, m.WeeklyViewsResetWeek,
-                JobStatus = _context.IngestJobs.Where(j => j.MovieId == m.Id).OrderByDescending(j => j.CreatedAt).Select(j => new { j.Status, j.Logs, j.FinishedAt }).FirstOrDefault()
+            var moviesRaw = await _context.Movies.Where(m => !m.IsDeleted).Select(m => new {
+                m.Id, 
+                MovieId = m.Id, 
+                m.Title, 
+                m.OriginalTitle,
+                m.Slug, 
+                m.PosterUrl, 
+                m.BackdropUrl,
+                m.Description,
+                m.ReleaseYear,
+                m.AgeRating,
+                m.ViewCount, 
+                m.Status, 
+                m.UpdatedAt
             }).ToListAsync();
-            await _cache.SetStringAsync(MoviesCacheKey, JsonSerializer.Serialize(movies, camelCase), CacheOptions);
+
+            var movies = moviesRaw.Select(m => new {
+                m.Id,
+                m.MovieId,
+                m.Title,
+                m.OriginalTitle,
+                m.Slug,
+                m.Description,
+                PosterUrl = !string.IsNullOrEmpty(m.PosterUrl) ? _r2Service.GeneratePresignedDownloadUrl(CleanUrl(m.PosterUrl)) : null,
+                BackdropUrl = !string.IsNullOrEmpty(m.BackdropUrl) ? _r2Service.GeneratePresignedDownloadUrl(CleanUrl(m.BackdropUrl)) : null,
+                m.ReleaseYear,
+                m.AgeRating,
+                m.ViewCount,
+                m.Status,
+                m.UpdatedAt,
+                JobStatus = _context.IngestJobs.Where(j => j.MovieId == m.Id).OrderByDescending(j => j.CreatedAt).Select(j => new { j.Status, j.Logs, j.FinishedAt }).FirstOrDefault()
+            }).ToList();
+
+            await _cache.RemoveAsync(MoviesCacheKey); 
             return Ok(movies);
         }
 
@@ -51,23 +82,185 @@ namespace ProjectTviEn.Controllers.Admin
 
         [HttpGet("slug/{slug}")]
         public async Task<IActionResult> GetMovieBySlug(string slug) {
-            var movie = await _context.Movies.FirstOrDefaultAsync(m => m.Slug == slug && !m.IsDeleted);
+            var movie = await _context.Movies
+                .Include(m => m.Videos.Where(v => !v.IsDeleted))
+                .Include(m => m.MovieGenres).ThenInclude(mg => mg.Genre)
+                .Include(m => m.MovieCrews).ThenInclude(mc => mc.Person)
+                .FirstOrDefaultAsync(m => m.Slug == slug && !m.IsDeleted);
             if (movie == null) return NotFound(new { error = "ERR_SLUG_NOT_FOUND" });
+
+            // Ký URL ảnh
+            if (!string.IsNullOrEmpty(movie.PosterUrl)) movie.PosterUrl = _r2Service.GeneratePresignedDownloadUrl(CleanUrl(movie.PosterUrl));
+            if (!string.IsNullOrEmpty(movie.BackdropUrl)) movie.BackdropUrl = _r2Service.GeneratePresignedDownloadUrl(CleanUrl(movie.BackdropUrl));
+
             return Ok(movie);
         }
 
         [HttpGet("{id}/play")]
-        public async Task<IActionResult> GetPlayUrlById(string id) {
+        public async Task<IActionResult> GetPlayUrlById(int id) {
             var movie = await _context.Movies.FindAsync(id);
             if (movie == null) return NotFound(new { error = "ERR_ID_NOT_FOUND" });
             return await GeneratePlayResponse(movie);
         }
 
+        [HttpGet("image-url/{id}")]
+        public IActionResult GetImagePresignedUrl(int id, [FromQuery] string key)
+        {
+            if (string.IsNullOrEmpty(key)) return BadRequest("Missing key");
+            var presignedUrl = _r2Service.GeneratePresignedDownloadUrl(key);
+            return Ok(new { url = presignedUrl });
+        }
+
         [HttpGet("{id}")]
-        public async Task<IActionResult> GetMovieById(string id) {
-            var movie = await _context.Movies.FindAsync(id);
+        public async Task<IActionResult> GetMovieById(int id) {
+            var movie = await _context.Movies
+                .Include(m => m.Videos.Where(v => !v.IsDeleted))
+                .Include(m => m.MovieGenres).ThenInclude(mg => mg.Genre)
+                .Include(m => m.MovieCrews).ThenInclude(mc => mc.Person)
+                .FirstOrDefaultAsync(m => m.Id == id && !m.IsDeleted);
+
             if (movie == null) return NotFound(new { error = "ERR_ID_NOT_FOUND" });
-            return Ok(movie);
+
+            // Ký URL ảnh
+            if (!string.IsNullOrEmpty(movie.PosterUrl)) movie.PosterUrl = _r2Service.GeneratePresignedDownloadUrl(CleanUrl(movie.PosterUrl));
+            if (!string.IsNullOrEmpty(movie.BackdropUrl)) movie.BackdropUrl = _r2Service.GeneratePresignedDownloadUrl(CleanUrl(movie.BackdropUrl));
+
+            return Ok(new {
+                movie.Id,
+                MovieId = movie.Id,
+                movie.Title,
+                movie.OriginalTitle,
+                movie.Slug,
+                movie.Description,
+                movie.PosterUrl,
+                movie.BackdropUrl,
+                movie.TrailerUrl,
+                movie.ReleaseYear,
+                movie.Duration,
+                movie.AgeRating,
+                movie.Status,
+                movie.ViewCount,
+                movie.CreatedAt,
+                movie.UpdatedAt,
+                Genres = movie.MovieGenres.Select(mg => new { mg.GenreId, mg.Genre?.Name }),
+                Crew = movie.MovieCrews.Select(mc => new { mc.PersonId, mc.Person?.FullName, mc.RoleId }),
+                Videos = movie.Videos.Select(v => new {
+                    v.VideoId,
+                    v.Resolution,
+                    v.MasterPlaylistUrl,
+                    v.IsEncrypted,
+                    v.CreatedAt
+                })
+            });
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> CreateMovie([FromBody] Movie movie) {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+            movie.CreatedAt = DateTime.UtcNow;
+
+            // Xử lý Thể loại
+            if (movie.GenreIds != null) {
+                foreach (var gid in movie.GenreIds) {
+                    movie.MovieGenres.Add(new MovieGenre { GenreId = gid });
+                }
+            }
+
+            // Xử lý Nhân sự
+            if (movie.CrewMembers != null) {
+                foreach (var cm in movie.CrewMembers) {
+                    movie.MovieCrews.Add(new MovieCrew { PersonId = cm.PersonId, RoleId = cm.RoleId });
+                }
+            }
+
+            _context.Movies.Add(movie);
+            await _context.SaveChangesAsync();
+            await _cache.RemoveAsync(MoviesCacheKey);
+            return CreatedAtAction(nameof(GetMovieById), new { id = movie.Id }, movie);
+        }
+
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateMovie(int id, [FromBody] MovieUpdateDto dto) {
+            var movie = await _context.Movies
+                .Include(m => m.MovieGenres)
+                .Include(m => m.MovieCrews)
+                .FirstOrDefaultAsync(m => m.Id == id);
+            
+            if (movie == null) return NotFound();
+
+            // 1. Cập nhật Metadata cơ bản
+            movie.Title = dto.Title;
+            movie.OriginalTitle = dto.OriginalTitle;
+            movie.Slug = dto.Slug;
+            movie.Description = dto.Description;
+            movie.ReleaseYear = dto.ReleaseYear;
+            movie.Duration = dto.Duration;
+            movie.AgeRating = dto.AgeRating;
+            movie.Status = dto.Status;
+            movie.TrailerUrl = dto.TrailerUrl;
+            movie.UpdatedAt = DateTime.UtcNow;
+
+            // Chỉ cập nhật URL nếu nó hợp lệ
+            movie.PosterUrl = CleanUrl(dto.PosterUrl);
+            movie.BackdropUrl = CleanUrl(dto.BackdropUrl);
+
+            // 2. Cập nhật Thể loại (Xóa cũ, Thêm mới)
+            if (movie.MovieGenres != null) _context.MovieGenres.RemoveRange(movie.MovieGenres);
+            if (dto.GenreIds != null) {
+                foreach (var gId in dto.GenreIds) {
+                    movie.MovieGenres?.Add(new MovieGenre { MovieId = id, GenreId = gId });
+                }
+            }
+
+            // 3. Cập nhật Nhân sự (Xóa cũ, Thêm mới)
+            if (movie.MovieCrews != null) _context.MovieCrews.RemoveRange(movie.MovieCrews);
+            if (dto.CrewMembers != null) {
+                foreach (var cm in dto.CrewMembers) {
+                    movie.MovieCrews?.Add(new MovieCrew { MovieId = id, PersonId = cm.PersonId, RoleId = cm.RoleId });
+                }
+            }
+
+            try {
+                await _context.SaveChangesAsync();
+                await _cache.RemoveAsync(MoviesCacheKey);
+                return Ok(movie);
+            } catch (Exception ex) {
+                return StatusCode(500, $"Lỗi lưu database: {ex.Message} {ex.InnerException?.Message}");
+            }
+        }
+
+        // --- END IMAGE URL ---
+
+        [HttpPost("{id}/upload-poster")]
+        public async Task<IActionResult> UploadPoster(int id, IFormFile file) {
+            if (file == null || file.Length == 0) return BadRequest("File không hợp lệ");
+            var movie = await _context.Movies.FindAsync(id);
+            if (movie == null) return NotFound();
+
+            using var stream = file.OpenReadStream();
+            string fileName = $"poster_{id}_{DateTime.UtcNow.Ticks}";
+            // Poster tỷ lệ 2:3 -> 600x900
+            movie.PosterUrl = await _r2Service.UploadImageAsync(stream, "posters", fileName, 600, 900);
+            
+            await _context.SaveChangesAsync();
+            await _cache.RemoveAsync(MoviesCacheKey);
+            return Ok(new { url = movie.PosterUrl });
+        }
+
+        [HttpPost("{id}/upload-backdrop")]
+        public async Task<IActionResult> UploadBackdrop(int id, IFormFile file) {
+            if (file == null || file.Length == 0) return BadRequest("File không hợp lệ");
+            var movie = await _context.Movies.FindAsync(id);
+            if (movie == null) return NotFound();
+
+            using var stream = file.OpenReadStream();
+            string fileName = $"backdrop_{id}_{DateTime.UtcNow.Ticks}";
+            // Backdrop tỷ lệ 16:9 -> 1920x1080
+            movie.BackdropUrl = await _r2Service.UploadImageAsync(stream, "backdrops", fileName, 1920, 1080);
+            
+            await _context.SaveChangesAsync();
+            await _cache.RemoveAsync(MoviesCacheKey);
+            return Ok(new { url = movie.BackdropUrl });
         }
 
         private async Task<IActionResult> GeneratePlayResponse(Movie movie) {
@@ -81,7 +274,10 @@ namespace ProjectTviEn.Controllers.Admin
                 
                 int expHours = 3;
                 var tokenDescriptor = new SecurityTokenDescriptor {
-                    Subject = new ClaimsIdentity(new[] { new Claim("movieId", movie.Id), new Claim("title", movie.Title ?? "") }),
+                    Subject = new ClaimsIdentity(new[] { 
+                        new Claim("movieId", movie.Id.ToString()), 
+                        new Claim("title", movie.Title ?? "") 
+                    }),
                     Issuer = "tvien-backend",
                     Audience = "tvien-worker",
                     Expires = DateTime.UtcNow.AddHours(expHours), 
@@ -99,6 +295,22 @@ namespace ProjectTviEn.Controllers.Admin
                     ExpiresInHours = expHours
                 });
             } catch (Exception ex) { return StatusCode(500, ex.Message); }
+        }
+
+        private string? CleanUrl(string? url)
+        {
+            if (string.IsNullOrEmpty(url)) return null;
+            if (!url.StartsWith("http")) return url.TrimStart('/');
+
+            var bucketToken = "tvien-media-raw/";
+            int idx = url.IndexOf(bucketToken);
+            if (idx != -1)
+            {
+                var path = url.Substring(idx + bucketToken.Length);
+                int queryIdx = path.IndexOf('?');
+                return queryIdx != -1 ? path.Substring(0, queryIdx) : path;
+            }
+            return url;
         }
     }
 }

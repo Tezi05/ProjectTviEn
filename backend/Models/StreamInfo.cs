@@ -6,11 +6,10 @@ namespace ProjectTviEn.Models
     public class StreamInfo
     {
         [Key]
-        [MaxLength(50)]
-        public string MovieId { get; set; }
+        public int MovieId { get; set; }
         
         [ForeignKey("MovieId")]
-        public Movie Movie { get; set; }
+        public Movie Movie { get; set; } = null!;
 
         [MaxLength(1000)]
         public string? MasterPlaylist { get; set; }

@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -6,21 +7,21 @@ namespace ProjectTviEn.Models
     public class Video : ISoftDelete
     {
         public bool IsDeleted { get; set; } = false;
+        
         [Key]
-        [MaxLength(50)]
-        public string VideoId { get; set; } = Guid.NewGuid().ToString("N");
+        public Guid VideoId { get; set; } = Guid.NewGuid();
 
         // Video thuộc về Movie (phim lẻ) HOẶC Episode (phim bộ)
-        [MaxLength(50)]
-        public string? MovieId { get; set; }
+        public int? MovieId { get; set; }
 
         [ForeignKey("MovieId")]
+        [JsonIgnore]
         public Movie? Movie { get; set; }
 
-        [MaxLength(50)]
-        public string? EpisodeId { get; set; }
+        public Guid? EpisodeId { get; set; }
 
         [ForeignKey("EpisodeId")]
+        [JsonIgnore]
         public Episode? Episode { get; set; }
 
         [Required]
@@ -35,6 +36,14 @@ namespace ProjectTviEn.Models
 
         public bool IsEncrypted { get; set; } = false;
 
+        // DRM - AES-128
+        [MaxLength(255)]
+        public string? EncryptionKey { get; set; }
+        
+        [MaxLength(255)]
+        public string? IV { get; set; }
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime? UpdatedAt { get; set; }
     }
 }

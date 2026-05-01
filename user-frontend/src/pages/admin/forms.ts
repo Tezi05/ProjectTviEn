@@ -1,0 +1,9 @@
+export { GenreForm as AddGenreForm } from './tables/Genres/GenreForm';
+export { PersonForm as AddPersonForm } from './tables/Persons/PersonForm';
+export { EpisodeForm as AddEpisodeForm } from './tables/Episodes/EpisodeForm';
+export { RoleForm as AddRoleForm } from './tables/Roles/RoleForm';
+export { MovieGenreForm as AddMovieGenreForm } from './tables/MovieGenres/MovieGenreForm';
+export { MovieCrewForm as AddMovieCrewForm } from './tables/MovieCrews/MovieCrewForm';
+export { UserForm as AddUserForm } from './tables/Users/UserForm';
+export { ReviewForm as AddReviewForm } from './tables/Reviews/ReviewForm';
+export { WatchlistForm as AddWatchlistForm } from './tables/Watchlists/WatchlistForm';

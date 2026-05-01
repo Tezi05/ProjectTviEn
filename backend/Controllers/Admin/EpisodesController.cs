@@ -17,7 +17,7 @@ namespace ProjectTviEn.Controllers.Admin
 
         // GET: api/admin/movies/{movieId}/episodes
         [HttpGet("movies/{movieId}/episodes")]
-        public async Task<IActionResult> GetByMovie(string movieId)
+        public async Task<IActionResult> GetByMovie(int movieId)
         {
             var episodes = await _context.Episodes
                 .Where(e => e.MovieId == movieId)
@@ -29,7 +29,7 @@ namespace ProjectTviEn.Controllers.Admin
 
         // GET: api/admin/episodes/{id}
         [HttpGet("episodes/{id}")]
-        public async Task<IActionResult> GetById(string id)
+        public async Task<IActionResult> GetById(Guid id)
         {
             var episode = await _context.Episodes
                 .Include(e => e.Videos)
@@ -41,7 +41,7 @@ namespace ProjectTviEn.Controllers.Admin
 
         // POST: api/admin/movies/{movieId}/episodes
         [HttpPost("movies/{movieId}/episodes")]
-        public async Task<IActionResult> Create(string movieId, [FromBody] Episode episode)
+        public async Task<IActionResult> Create(int movieId, [FromBody] Episode episode)
         {
             var movie = await _context.Movies.FindAsync(movieId);
             if (movie == null) return NotFound($"Movie '{movieId}' not found");
@@ -54,7 +54,7 @@ namespace ProjectTviEn.Controllers.Admin
 
         // PUT: api/admin/episodes/{id}
         [HttpPut("episodes/{id}")]
-        public async Task<IActionResult> Update(string id, [FromBody] Episode updated)
+        public async Task<IActionResult> Update(Guid id, [FromBody] Episode updated)
         {
             var episode = await _context.Episodes.FindAsync(id);
             if (episode == null) return NotFound($"Episode '{id}' not found");
@@ -65,6 +65,8 @@ namespace ProjectTviEn.Controllers.Admin
             episode.Description   = updated.Description ?? episode.Description;
             episode.Duration      = updated.Duration ?? episode.Duration;
             episode.AirDate       = updated.AirDate ?? episode.AirDate;
+            episode.Status        = updated.Status;
+            episode.UpdatedAt     = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
             return Ok(episode);
@@ -72,7 +74,7 @@ namespace ProjectTviEn.Controllers.Admin
 
         // DELETE: api/admin/episodes/{id}
         [HttpDelete("episodes/{id}")]
-        public async Task<IActionResult> Delete(string id)
+        public async Task<IActionResult> Delete(Guid id)
         {
             var episode = await _context.Episodes.FindAsync(id);
             if (episode == null) return NotFound($"Episode '{id}' not found");

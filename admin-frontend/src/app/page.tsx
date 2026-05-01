@@ -56,6 +56,10 @@ export default function Dashboard() {
   const [editModal, setEditModal] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
   const [editLoading, setEditLoading] = useState(false);
+  const [allGenres, setAllGenres] = useState<any[]>([]);
+  const [allPersons, setAllPersons] = useState<any[]>([]);
+  const [editTab, setEditTab] = useState('info'); // 'info' or 'video'
+  const [slugDisabled, setSlugDisabled] = useState(true);
   
   // Upload States
   const [movieIdInput, setMovieIdInput] = useState('');
@@ -100,11 +104,30 @@ export default function Dashboard() {
 
   const handleEditOpen = useCallback(async (item: any) => {
     const id = item.id || item.Id || item.movieId || item.MovieId || item.genreId || item.GenreId || item.personId || item.PersonId;
-    setEditLoading(true); setEditModal(true); setEditingItem(item);
+    setEditLoading(true); setEditModal(true); setEditingItem(item); setEditTab('info'); setSlugDisabled(true);
+    
     try {
       const entity = ENTITIES.find(e => e.id === activeTab);
       const res = await fetch(`http://localhost:5113/api/${entity?.api}/${id}`);
-      if (res.ok) setEditingItem(await res.json());
+      if (res.ok) {
+        const fullItem = await res.json();
+        // Chuẩn hóa dữ liệu GenreIds và CrewMembers cho DTO
+        if (activeTab === 'movies') {
+          fullItem.genreIds = fullItem.genres?.map((g: any) => g.genreId) || [];
+          fullItem.crewMembers = fullItem.crew?.map((c: any) => ({ personId: c.personId, roleId: c.roleId })) || [];
+        }
+        setEditingItem(fullItem);
+      }
+
+      // Nếu là Movies, tải thêm danh sách Thể loại và Nhân sự để chọn
+      if (activeTab === 'movies') {
+        const [gRes, pRes] = await Promise.all([
+          fetch('http://localhost:5113/api/admin/system/tables/Genres'),
+          fetch('http://localhost:5113/api/admin/system/tables/Persons')
+        ]);
+        if (gRes.ok) setAllGenres(await gRes.ok ? await gRes.json() : []);
+        if (pRes.ok) setAllPersons(await pRes.ok ? await pRes.json() : []);
+      }
     } catch (err) { console.error(err); } finally { setEditLoading(false); }
   }, [activeTab]);
 
@@ -192,11 +215,224 @@ export default function Dashboard() {
         </CRow>
       </CContainer>
 
-      {/* EDIT MODAL */}
-      <CModal visible={editModal} onClose={() => setEditModal(false)} size="lg">
-        <CModalHeader><CModalTitle className="fs-6">Edit Record</CModalTitle></CModalHeader>
-        <CModalBody>{editLoading ? <div className="text-center py-4"><CSpinner size="sm"/></div> : editingItem && (<CRow className="g-3">{Object.keys(editingItem).filter(k => !['id','movieid','genreid','personid','createdat','updatedat','finishedat','jobstatus','encryptionkey'].includes(k.toLowerCase()) && typeof editingItem[k] !== 'object').map(k => (<CCol md={k.toLowerCase().includes('description') || k.toLowerCase().includes('bio') || k.toLowerCase().includes('url') ? 12 : 6} key={k}><CFormInput label={k.toUpperCase()} value={editingItem[k] || ''} onChange={(e) => setEditingItem({ ...editingItem, [k]: e.target.value })} size="sm" /></CCol>))}</CRow>)}</CModalBody>
-        <CModalFooter><CButton color="secondary" size="sm" onClick={() => setEditModal(false)}>Hủy</CButton><CButton color="primary" size="sm" onClick={handleEditSubmit}>Lưu</CButton></CModalFooter>
+      <CModal visible={editModal} onClose={() => setEditModal(false)} size="xl" scrollable>
+        <CModalHeader className="bg-dark text-white py-2">
+          <CModalTitle className="fs-6 fw-bold">🛠️ Chỉnh sửa {activeTab.toUpperCase()}</CModalTitle>
+        </CModalHeader>
+        <CModalBody className="p-0">
+          {editLoading ? <div className="text-center py-5"><CSpinner /></div> : editingItem && (
+            <div className="d-flex flex-column h-100">
+              {activeTab === 'movies' && (
+                <div className="bg-light border-bottom px-3 py-2 d-flex gap-3">
+                  <CButton size="sm" variant={editTab === 'info' ? 'solid' : 'ghost'} color="primary" onClick={() => setEditTab('info')}>📝 Thông tin phim</CButton>
+                  <CButton size="sm" variant={editTab === 'video' ? 'solid' : 'ghost'} color="primary" onClick={() => setEditTab('video')}>📹 Quản lý Video</CButton>
+                </div>
+              )}
+
+              <div className="p-4 overflow-auto" style={{ maxHeight: '70vh' }}>
+                {activeTab === 'movies' && editTab === 'info' ? (
+                  <CRow className="g-4">
+                    {/* PHÂN KHU 1: CORE INFO */}
+                    <CCol md={8}>
+                      <CCard className="border-0 shadow-sm mb-4">
+                        <CCardHeader className="bg-white fw-bold small text-primary">1. THÔNG TIN CỐT LÕI</CCardHeader>
+                        <CCardBody>
+                          <CRow className="g-3">
+                            <CCol md={8}><CFormInput label="TIÊU ĐỀ" value={editingItem.title || ''} onChange={e => setEditingItem({...editingItem, title: e.target.value})} /></CCol>
+                            <CCol md={4}><CFormInput label="NĂM" type="number" value={editingItem.releaseYear || ''} onChange={e => setEditingItem({...editingItem, releaseYear: parseInt(e.target.value)})} /></CCol>
+                            <CCol md={8}><CFormInput label="TÊN GỐC (ORIGINAL TITLE)" value={editingItem.originalTitle || ''} onChange={e => setEditingItem({...editingItem, originalTitle: e.target.value})} /></CCol>
+                            <CCol md={4}>
+                              <label className="form-label small fw-bold">ĐỘ TUỔI</label>
+                              <select className="form-select" value={editingItem.ageRating || ''} onChange={e => setEditingItem({...editingItem, ageRating: e.target.value})}>
+                                <option value="P">P - Mọi lứa tuổi</option>
+                                <option value="13+">13+ - Trên 13 tuổi</option>
+                                <option value="C16">C16 - Trên 16 tuổi</option>
+                                <option value="C18">C18 - Trên 18 tuổi</option>
+                              </select>
+                            </CCol>
+                            <CCol md={12}>
+                              <label className="form-label small fw-bold">SLUG (URL)</label>
+                              <div className="input-group">
+                                <input type="text" className="form-control" disabled={slugDisabled} value={editingItem.slug || ''} onChange={e => setEditingItem({...editingItem, slug: e.target.value})} />
+                                <CButton color="warning" variant="outline" onClick={() => { if(confirm('Sửa Slug có thể làm hỏng SEO! Bạn chắc chứ?')) setSlugDisabled(false) }}>🔓</CButton>
+                              </div>
+                            </CCol>
+                          </CRow>
+                        </CCardBody>
+                      </CCard>
+
+                      {/* PHÂN KHU 2: CONTENT */}
+                      <CCard className="border-0 shadow-sm mb-4">
+                        <CCardHeader className="bg-white fw-bold small text-primary">2. NỘI DUNG & MÔ TẢ</CCardHeader>
+                        <CCardBody>
+                          <div className="mb-3">
+                            <label className="form-label small fw-bold">MÔ TẢ PHIM</label>
+                            <textarea className="form-control" rows={6} value={editingItem.description || ''} onChange={e => setEditingItem({...editingItem, description: e.target.value})} placeholder="Nhập nội dung phim..."></textarea>
+                          </div>
+                          <CFormInput label="TRAILER URL (YOUTUBE/MP4)" value={editingItem.trailerUrl || ''} onChange={e => setEditingItem({...editingItem, trailerUrl: e.target.value})} />
+                        </CCardBody>
+                      </CCard>
+
+                      {/* PHÂN KHU 3: RELATIONSHIPS */}
+                      <CCard className="border-0 shadow-sm">
+                        <CCardHeader className="bg-white fw-bold small text-primary">3. THỂ LOẠI & NHÂN SỰ</CCardHeader>
+                        <CCardBody>
+                          <div className="mb-4">
+                            <label className="form-label small fw-bold d-block">THỂ LOẠI</label>
+                            <div className="d-flex flex-wrap gap-2 mb-2">
+                              {allGenres.map(g => (
+                                <CBadge key={g.id} color={editingItem.genreIds?.includes(g.id) ? 'primary' : 'light'} 
+                                  className="p-2 cursor-pointer border" style={{ cursor: 'pointer' }}
+                                  onClick={() => {
+                                    const ids = [...(editingItem.genreIds || [])];
+                                    const idx = ids.indexOf(g.id);
+                                    if(idx > -1) ids.splice(idx, 1); else ids.push(g.id);
+                                    setEditingItem({...editingItem, genreIds: ids});
+                                  }}>
+                                  {g.name}
+                                </CBadge>
+                              ))}
+                            </div>
+                          </div>
+                          <div>
+                            <label className="form-label small fw-bold d-block">NHÂN SỰ (CREW)</label>
+                            <div className="bg-light p-3 rounded mb-3" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                              {editingItem.crewMembers?.map((cm: any, idx: number) => {
+                                const p = allPersons.find(per => per.id === cm.personId);
+                                return (
+                                  <div key={idx} className="d-flex align-items-center gap-2 mb-2 bg-white p-2 rounded shadow-sm">
+                                    <span className="small flex-grow-1 fw-bold">{p?.fullName || 'Người ẩn danh'}</span>
+                                    <select className="form-select form-select-sm w-auto" value={cm.roleId} onChange={e => {
+                                      const members = [...editingItem.crewMembers];
+                                      members[idx].roleId = parseInt(e.target.value);
+                                      setEditingItem({...editingItem, crewMembers: members});
+                                    }}>
+                                      <option value={1}>Đạo diễn</option>
+                                      <option value={2}>Diễn viên</option>
+                                      <option value={3}>Biên kịch</option>
+                                    </select>
+                                    <CButton color="danger" size="sm" variant="ghost" onClick={() => {
+                                      const members = [...editingItem.crewMembers];
+                                      members.splice(idx, 1);
+                                      setEditingItem({...editingItem, crewMembers: members});
+                                    }}>✖</CButton>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                            <div className="input-group">
+                              <select className="form-select form-select-sm" id="addPerson">
+                                <option value="">+ Chọn nhân sự mới...</option>
+                                {allPersons.filter(p => !editingItem.crewMembers?.some((cm: any) => cm.personId === p.id)).map(p => (
+                                  <option key={p.id} value={p.id}>{p.fullName}</option>
+                                ))}
+                              </select>
+                              <CButton color="primary" size="sm" onClick={() => {
+                                const select = document.getElementById('addPerson') as HTMLSelectElement;
+                                if(!select.value) return;
+                                const members = [...(editingItem.crewMembers || [])];
+                                members.push({ personId: select.value, roleId: 2 });
+                                setEditingItem({...editingItem, crewMembers: members});
+                                select.value = "";
+                              }}>Thêm</CButton>
+                            </div>
+                          </div>
+                        </CCardBody>
+                      </CCard>
+                    </CCol>
+
+                    {/* PHÂN KHU 2: MEDIA PREVIEW (Cột phải) */}
+                    <CCol md={4}>
+                      <CCard className="border-0 shadow-sm mb-4">
+                        <CCardHeader className="bg-white fw-bold small text-primary">POSTER (DỌC 2:3)</CCardHeader>
+                        <CCardBody className="text-center">
+                          <img src={editingItem.posterUrl ? `https://pub-843e9389e0234a5d89617300438edb37.r2.dev/${editingItem.posterUrl}` : 'https://placehold.co/200x300?text=No+Poster'} 
+                               className="img-fluid rounded shadow mb-3" style={{ maxHeight: '300px' }} />
+                          <CFormInput type="file" size="sm" onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if(!file) return;
+                            const formData = new FormData(); formData.append('file', file);
+                            const res = await fetch(`http://localhost:5113/api/admin/Movies/${editingItem.id}/upload-poster`, { method: 'POST', body: formData });
+                            if(res.ok) { const json = await res.json(); setEditingItem({...editingItem, posterUrl: json.url}); }
+                          }} />
+                        </CCardBody>
+                      </CCard>
+                      
+                      <CCard className="border-0 shadow-sm mb-4">
+                        <CCardHeader className="bg-white fw-bold small text-primary">BACKDROP (NGANG 16:9)</CCardHeader>
+                        <CCardBody className="text-center">
+                          <img src={editingItem.backdropUrl ? `https://pub-843e9389e0234a5d89617300438edb37.r2.dev/${editingItem.backdropUrl}` : 'https://placehold.co/320x180?text=No+Backdrop'} 
+                               className="img-fluid rounded shadow mb-3" />
+                          <CFormInput type="file" size="sm" onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if(!file) return;
+                            const formData = new FormData(); formData.append('file', file);
+                            const res = await fetch(`http://localhost:5113/api/admin/Movies/${editingItem.id}/upload-backdrop`, { method: 'POST', body: formData });
+                            if(res.ok) { const json = await res.json(); setEditingItem({...editingItem, backdropUrl: json.url}); }
+                          }} />
+                        </CCardBody>
+                      </CCard>
+
+                      {/* PHÂN KHU 4: PUBLISHING */}
+                      <CCard className="border-0 shadow-sm bg-dark text-white">
+                        <CCardHeader className="bg-transparent border-secondary fw-bold small">4. TRẠNG THÁI</CCardHeader>
+                        <CCardBody>
+                          <div className="d-flex justify-content-between align-items-center mb-3">
+                            <span>XUẤT BẢN</span>
+                            <div className="form-check form-switch">
+                              <input className="form-check-input" type="checkbox" style={{ width: '40px', height: '20px' }} 
+                                     checked={editingItem.status === 1} 
+                                     onChange={e => setEditingItem({...editingItem, status: e.target.checked ? 1 : 0})} />
+                            </div>
+                          </div>
+                          <div className="small text-secondary">
+                            <div>📅 Tạo: {new Date(editingItem.createdAt).toLocaleDateString()}</div>
+                            <div>🔄 Sửa: {editingItem.updatedAt ? new Date(editingItem.updatedAt).toLocaleDateString() : 'N/A'}</div>
+                          </div>
+                        </CCardBody>
+                      </CCard>
+                    </CCol>
+                  </CRow>
+                ) : activeTab === 'movies' && editTab === 'video' ? (
+                  /* TAB QUẢN LÝ VIDEO */
+                  <div>
+                    <h6 className="fw-bold mb-4">Danh sách luồng phát (Streaming)</h6>
+                    {editingItem.videos?.length > 0 ? (
+                      <CTable align="middle">
+                        <CTableHead color="light"><CTableRow><CTableHeaderCell>VIDEO ID</CTableHeaderCell><CTableHeaderCell>ĐỘ PHÂN GIẢI</CTableHeaderCell><CTableHeaderCell>DRM</CTableHeaderCell><CTableHeaderCell>NGÀY TẠO</CTableHeaderCell></CTableRow></CTableHead>
+                        <CTableBody>
+                          {editingItem.videos.map((v: any) => (
+                            <CTableRow key={v.videoId}>
+                              <CTableDataCell className="small">{v.videoId}</CTableDataCell>
+                              <CTableDataCell><CBadge color="info">{v.resolution}</CBadge></CTableDataCell>
+                              <CTableDataCell>{v.isEncrypted ? '🔐 AES-128' : '🔓 None'}</CTableDataCell>
+                              <CTableDataCell className="small">{new Date(v.createdAt).toLocaleString()}</CTableDataCell>
+                            </CTableRow>
+                          ))}
+                        </CTableBody>
+                      </CTable>
+                    ) : (
+                      <div className="text-center p-5 bg-light rounded text-muted">Chưa có video. Vui lòng chạy Ingest Job.</div>
+                    )}
+                  </div>
+                ) : (
+                  /* GENERIC UI CHO CÁC BẢNG KHÁC */
+                  <CRow className="g-3">
+                    {Object.keys(editingItem).filter(k => !['id','movieid','genreid','personid','createdat','updatedat','finishedat','jobstatus','encryptionkey','videos','genres','crew'].includes(k.toLowerCase()) && typeof editingItem[k] !== 'object').map(k => (
+                      <CCol md={k.toLowerCase().includes('description') || k.toLowerCase().includes('bio') || k.toLowerCase().includes('url') ? 12 : 6} key={k}>
+                        <CFormInput label={k.toUpperCase()} value={editingItem[k] || ''} onChange={(e) => setEditingItem({ ...editingItem, [k]: e.target.value })} size="sm" />
+                      </CCol>
+                    ))}
+                  </CRow>
+                )}
+              </div>
+            </div>
+          )}
+        </CModalBody>
+        <CModalFooter className="bg-light border-top-0 py-2">
+          <CButton color="secondary" size="sm" variant="ghost" onClick={() => setEditModal(false)}>Đóng</CButton>
+          <CButton color="primary" size="sm" className="px-4" onClick={handleEditSubmit}>LƯU THAY ĐỔI</CButton>
+        </CModalFooter>
       </CModal>
 
       {/* UPLOAD MODAL */}

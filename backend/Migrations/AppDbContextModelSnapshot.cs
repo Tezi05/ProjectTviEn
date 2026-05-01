@@ -24,12 +24,15 @@ namespace ProjectTviEn.Migrations
 
             modelBuilder.Entity("ProjectTviEn.Models.Episode", b =>
                 {
-                    b.Property<string>("EpisodeId")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                    b.Property<Guid>("EpisodeId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
 
                     b.Property<DateOnly?>("AirDate")
                         .HasColumnType("date");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Description")
                         .HasColumnType("text");
@@ -43,17 +46,21 @@ namespace ProjectTviEn.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
-                    b.Property<string>("MovieId")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                    b.Property<int>("MovieId")
+                        .HasColumnType("integer");
 
                     b.Property<int>("SeasonNumber")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Status")
                         .HasColumnType("integer");
 
                     b.Property<string>("Title")
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.HasKey("EpisodeId");
 
@@ -106,16 +113,17 @@ namespace ProjectTviEn.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("EpisodeId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime?>("FinishedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Logs")
                         .HasColumnType("text");
 
-                    b.Property<string>("MovieId")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                    b.Property<int>("MovieId")
+                        .HasColumnType("integer");
 
                     b.Property<int>("Priority")
                         .HasColumnType("integer");
@@ -152,10 +160,11 @@ namespace ProjectTviEn.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("MovieId")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                    b.Property<Guid?>("EpisodeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("MovieId")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Path")
                         .IsRequired()
@@ -184,14 +193,19 @@ namespace ProjectTviEn.Migrations
 
             modelBuilder.Entity("ProjectTviEn.Models.Movie", b =>
                 {
-                    b.Property<string>("Id")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasAnnotation("Relational:JsonPropertyName", "movieId");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
 
-                    b.Property<string>("Country")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AgeRating")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<string>("BackdropUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -202,23 +216,12 @@ namespace ProjectTviEn.Migrations
                     b.Property<int?>("Duration")
                         .HasColumnType("integer");
 
-                    b.Property<string>("EncryptionKey")
-                        .HasColumnType("text");
-
-                    b.Property<float?>("ImdbScore")
-                        .HasColumnType("real");
-
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
-                    b.Property<string>("Language")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("MovieType")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
+                    b.Property<string>("OriginalTitle")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
 
                     b.Property<string>("PosterUrl")
                         .HasMaxLength(1000)
@@ -227,13 +230,13 @@ namespace ProjectTviEn.Migrations
                     b.Property<int?>("ReleaseYear")
                         .HasColumnType("integer");
 
-                    b.Property<int?>("RottenTomatoesScore")
-                        .HasColumnType("integer");
-
                     b.Property<string>("Slug")
                         .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -244,10 +247,10 @@ namespace ProjectTviEn.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
 
-                    b.Property<int>("WeeklyViews")
-                        .HasColumnType("integer");
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
 
-                    b.Property<int>("WeeklyViewsResetWeek")
+                    b.Property<int>("ViewCount")
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
@@ -270,20 +273,16 @@ namespace ProjectTviEn.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
 
-                    b.Property<string>("MovieId")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                    b.Property<int>("MovieId")
+                        .HasColumnType("integer");
 
                     b.Property<string>("PersonId")
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
-                    b.Property<string>("Role")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                    b.Property<int>("RoleId")
+                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 
@@ -291,14 +290,15 @@ namespace ProjectTviEn.Migrations
 
                     b.HasIndex("PersonId");
 
+                    b.HasIndex("RoleId");
+
                     b.ToTable("MovieCrews");
                 });
 
             modelBuilder.Entity("ProjectTviEn.Models.MovieGenre", b =>
                 {
-                    b.Property<string>("MovieId")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                    b.Property<int>("MovieId")
+                        .HasColumnType("integer");
 
                     b.Property<int>("GenreId")
                         .HasColumnType("integer");
@@ -370,10 +370,8 @@ namespace ProjectTviEn.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("MovieId")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                    b.Property<int>("MovieId")
+                        .HasColumnType("integer");
 
                     b.Property<int>("Rating")
                         .HasColumnType("integer");
@@ -430,11 +428,45 @@ namespace ProjectTviEn.Migrations
                         });
                 });
 
+            modelBuilder.Entity("ProjectTviEn.Models.RoleInfo", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("RoleInfos");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Name = "Đạo diễn"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            Name = "Diễn viên"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            Name = "Biên kịch"
+                        });
+                });
+
             modelBuilder.Entity("ProjectTviEn.Models.StreamInfo", b =>
                 {
-                    b.Property<string>("MovieId")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                    b.Property<int>("MovieId")
+                        .HasColumnType("integer");
 
                     b.Property<string>("CdnUrl")
                         .HasMaxLength(1000)
@@ -512,16 +544,23 @@ namespace ProjectTviEn.Migrations
 
             modelBuilder.Entity("ProjectTviEn.Models.Video", b =>
                 {
-                    b.Property<string>("VideoId")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                    b.Property<Guid>("VideoId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("EpisodeId")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                    b.Property<string>("EncryptionKey")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<Guid?>("EpisodeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("IV")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
@@ -533,9 +572,8 @@ namespace ProjectTviEn.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
 
-                    b.Property<string>("MovieId")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                    b.Property<int?>("MovieId")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Resolution")
                         .IsRequired()
@@ -545,6 +583,9 @@ namespace ProjectTviEn.Migrations
                     b.Property<string>("SubtitleUrl")
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.HasKey("VideoId");
 
@@ -563,16 +604,14 @@ namespace ProjectTviEn.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("HistoryId"));
 
-                    b.Property<string>("EpisodeId")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                    b.Property<Guid?>("EpisodeId")
+                        .HasColumnType("uuid");
 
                     b.Property<bool>("IsCompleted")
                         .HasColumnType("boolean");
 
-                    b.Property<string>("MovieId")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                    b.Property<int?>("MovieId")
+                        .HasColumnType("integer");
 
                     b.Property<int>("ProgressSeconds")
                         .HasColumnType("integer");
@@ -607,10 +646,8 @@ namespace ProjectTviEn.Migrations
                     b.Property<DateTime>("AddedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("MovieId")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                    b.Property<int>("MovieId")
+                        .HasColumnType("integer");
 
                     b.Property<string>("UserId")
                         .IsRequired()
@@ -673,9 +710,17 @@ namespace ProjectTviEn.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("ProjectTviEn.Models.RoleInfo", "RoleInfo")
+                        .WithMany("MovieCrews")
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.Navigation("Movie");
 
                     b.Navigation("Person");
+
+                    b.Navigation("RoleInfo");
                 });
 
             modelBuilder.Entity("ProjectTviEn.Models.MovieGenre", b =>
@@ -836,6 +881,11 @@ namespace ProjectTviEn.Migrations
             modelBuilder.Entity("ProjectTviEn.Models.Role", b =>
                 {
                     b.Navigation("Users");
+                });
+
+            modelBuilder.Entity("ProjectTviEn.Models.RoleInfo", b =>
+                {
+                    b.Navigation("MovieCrews");
                 });
 
             modelBuilder.Entity("ProjectTviEn.Models.User", b =>

@@ -14,7 +14,7 @@ namespace ProjectTviEn.Controllers.Public
 
         // GET: api/public/reviews?movieId=xxx
         [HttpGet]
-        public async Task<IActionResult> GetByMovie([FromQuery] string movieId)
+        public async Task<IActionResult> GetByMovie([FromQuery] int movieId)
         {
             var reviews = await _db.Reviews
                 .Where(r => r.MovieId == movieId)

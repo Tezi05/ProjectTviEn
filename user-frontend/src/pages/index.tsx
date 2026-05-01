@@ -34,7 +34,7 @@ function normalizeMovie(d: any): Movie {
     title:                d.title            ?? d.Title            ?? 'Untitled',
     slug:                 d.slug             ?? d.Slug             ?? '',
     description:          d.description      ?? d.Description      ?? '',
-    posterUrl:            url ? url.replace('5113', '5113') : undefined,
+    posterUrl:            url || undefined,
     releaseYear:          d.releaseYear      ?? d.ReleaseYear      ?? 2024,
     weeklyViews:          d.weeklyViews      ?? d.WeeklyViews      ?? 0,
     weeklyViewsResetWeek: d.weeklyViewsResetWeek ?? d.WeeklyViewsResetWeek ?? 0,
@@ -160,7 +160,7 @@ export default function CinemaApp() {
   }, []);
 
   useEffect(() => {
-    fetch(API_URL)
+    fetch(`${API_URL}?t=${Date.now()}`)
       .then(res => res.json())
       .then(data => {
         let list = Array.isArray(data) ? data : (Object.values(data).find(v => Array.isArray(v)) as any[]) || [];

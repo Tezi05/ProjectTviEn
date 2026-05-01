@@ -3,6 +3,8 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
 using ProjectTviEn.Services;
+using ProjectTviEn.Models;
+using Microsoft.EntityFrameworkCore;
 using Amazon.S3;
 using Amazon.S3.Model;
 
@@ -14,11 +16,13 @@ namespace ProjectTviEn.Controllers.Public
     {
         private readonly IConfiguration _config;
         private readonly IR2Service _r2Service;
+        private readonly AppDbContext _db;
 
-        public GatekeeperController(IConfiguration config, IR2Service r2Service)
+        public GatekeeperController(IConfiguration config, IR2Service r2Service, AppDbContext db)
         {
             _config = config;
             _r2Service = r2Service;
+            _db = db;
         }
 
         [HttpGet("video/{movieId}/{**filePath}")]
@@ -49,8 +53,29 @@ namespace ProjectTviEn.Controllers.Public
                 } catch { return StatusCode(403, "Invalid or Expired Token"); }
             }
 
-            // 2. LẤY FILE TỪ R2
-            var r2Key = $"stream/{movieId}/{filePath}";
+            // 2. XÁC ĐỊNH R2 KEY DỰA TRÊN DATABASE (Hỗ trợ cả cũ và mới)
+            string r2Key = "";
+            if (int.TryParse(movieId, out int movieIntId))
+            {
+                var videoRecord = await _db.Videos
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(v => v.MovieId == movieIntId && !v.IsDeleted);
+
+                if (videoRecord != null && !string.IsNullOrEmpty(videoRecord.MasterPlaylistUrl))
+                {
+                    // Lấy thư mục gốc từ MasterPlaylistUrl (ví dụ: "stream/movies/2/" hoặc "stream/2/")
+                    var masterUrl = videoRecord.MasterPlaylistUrl;
+                    var baseFolder = masterUrl.Substring(0, masterUrl.LastIndexOf('/') + 1);
+                    r2Key = $"{baseFolder}{filePath}";
+                }
+            }
+
+            // Fallback nếu không tìm thấy trong DB
+            if (string.IsNullOrEmpty(r2Key))
+            {
+                r2Key = $"stream/{movieId}/{filePath}";
+            }
+
             string presignedUrl = _r2Service.GeneratePresignedDownloadUrl(r2Key);
             
             try {
@@ -77,7 +102,22 @@ namespace ProjectTviEn.Controllers.Public
                         }
                         else if (line.StartsWith("#EXT-X-KEY"))
                         {
-                            newContent.AppendLine(line.Replace(".key\"", $".key?token={token}\""));
+                            // Tìm vị trí URI="... " và chèn token vào cuối URL đó
+                            int uriStart = line.IndexOf("URI=\"");
+                            if (uriStart != -1)
+                            {
+                                int urlStart = uriStart + 5;
+                                int urlEnd = line.IndexOf("\"", urlStart);
+                                if (urlEnd != -1)
+                                {
+                                    string originalUrl = line.Substring(urlStart, urlEnd - urlStart);
+                                    var separator = originalUrl.Contains("?") ? "&" : "?";
+                                    string newUrl = $"{originalUrl}{separator}token={token}";
+                                    newContent.AppendLine(line.Replace(originalUrl, newUrl));
+                                    continue;
+                                }
+                            }
+                            newContent.AppendLine(line);
                         }
                         else { newContent.AppendLine(line); }
                     }

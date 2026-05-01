@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -10,11 +11,13 @@ namespace ProjectTviEn.Models
         public string AssetId { get; set; } = Guid.NewGuid().ToString("N");
 
         [Required]
-        [MaxLength(50)]
-        public string MovieId { get; set; } = string.Empty;
+        public int MovieId { get; set; }
         
+        [JsonIgnore]
         [ForeignKey("MovieId")]
         public Movie? Movie { get; set; }
+
+        public Guid? EpisodeId { get; set; } // ✅ Thêm để hỗ trợ phim bộ
 
         [Required]
         [MaxLength(50)]

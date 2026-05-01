@@ -51,6 +51,7 @@ export default function WatchPage() {
     if (videoRef.current) {
       const cur = videoRef.current.currentTime;
       const dur = videoRef.current.duration;
+      if (isNaN(dur) || dur === 0) return;
       setProgress((cur / dur) * 100);
       setCurrentTime(formatTime(cur));
       setTotalTime(formatTime(dur));
