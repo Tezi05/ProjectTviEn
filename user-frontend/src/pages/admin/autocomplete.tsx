@@ -151,3 +151,6 @@ export function AutocompleteInput({ placeholder, searchUrl, mapResult, selected,
     </div>
   );
 }
+
+
+export default function DummyNextPage() { return null; }

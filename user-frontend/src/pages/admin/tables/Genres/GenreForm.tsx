@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { AddModal, inp, lbl, toSlug } from '../../components/SharedUI';
 
-const API_BASE = 'http://localhost:5113/api';
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5113/api');
 
 export default function GenreForm({ onSaved, onClose }: { onSaved: () => void; onClose: () => void }) {
   const [f, setF] = useState({ name: '', slug: '' });

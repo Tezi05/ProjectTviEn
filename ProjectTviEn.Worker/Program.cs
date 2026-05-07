@@ -137,6 +137,40 @@ while (true)
             await reportProgress("processing", 90, "Đang upload HLS lên R2...");
             await UploadFolderToR2(s3Client, bucketName, hlsFolder, hlsR2Prefix);
 
+            // ✅ Tạo preview.mp4 (30 giây đầu) - KHÔNG redirect stderr để tránh pipe block
+            string previewPath = Path.Combine(tempFolder, "preview.mp4");
+            try
+            {
+                var previewArgs = $"-nostdin -y -i \"{inputPath}\" -t 30 -vf scale=640:360 -c:v libx264 -crf 28 -preset ultrafast -an -movflags +faststart \"{previewPath}\"";
+                var previewPsi = new ProcessStartInfo
+                {
+                    FileName = "ffmpeg", Arguments = previewArgs,
+                    UseShellExecute = false,
+                    RedirectStandardError = false,  // ✅ KHÔNG redirect để tránh pipe buffer block
+                    RedirectStandardOutput = false,
+                    CreateNoWindow = true
+                };
+                var previewProc = Process.Start(previewPsi)!;
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(120));
+                try { await previewProc.WaitForExitAsync(cts.Token); }
+                catch (OperationCanceledException) { previewProc.Kill(true); Console.WriteLine("  [⚠️] Preview timeout - bỏ qua"); }
+
+                if (previewProc.ExitCode == 0 && File.Exists(previewPath))
+                {
+                    string previewR2Key = $"{hlsR2Prefix}preview.mp4";
+                    await s3Client.PutObjectAsync(new Amazon.S3.Model.PutObjectRequest
+                    {
+                        BucketName = bucketName, Key = previewR2Key,
+                        FilePath = previewPath, DisablePayloadSigning = true
+                    });
+                    Console.WriteLine($"  [✅] Preview uploaded: {previewR2Key}");
+                }
+                else Console.WriteLine($"  [⚠️] Preview failed (exit={previewProc.ExitCode})");
+            }
+            catch (Exception ex) { Console.WriteLine($"  [⚠️] Preview error: {ex.Message}"); }
+
+
+
             string masterPlaylistUrl = $"{hlsR2Prefix}master.m3u8";
 
             // Tìm Video record cũ (nếu đang cập nhật lại)

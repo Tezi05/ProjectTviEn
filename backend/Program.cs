@@ -24,8 +24,17 @@ namespace ProjectTviEn
 
             builder.Services.AddCors(options =>
             {
-                options.AddPolicy("AllowAll",
-                    builder => builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
+                options.AddPolicy("AllowFrontend", policy =>
+                {
+                    policy.WithOrigins(
+                        "https://tvien-xxx.vercel.app",  // TODO: Thay bằng URL Vercel thật của bạn
+                        "http://localhost:3000",         // User frontend
+                        "http://localhost:3001"          // Admin frontend (nếu có)
+                    )
+                    .AllowAnyHeader()
+                    .AllowAnyMethod()
+                    .AllowCredentials();
+                });
             });
 
             var redisConnection = (builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379") + ",abortConnect=false";
@@ -77,7 +86,7 @@ namespace ProjectTviEn
                 c.RoutePrefix = string.Empty;
             });
 
-            app.UseCors("AllowAll");
+            app.UseCors("AllowFrontend");
             app.UseAuthorization();
             app.UseHttpMetrics();
             app.MapMetrics();

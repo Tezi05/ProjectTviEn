@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {
+const nextConfig: any = {
   reactStrictMode: true,
   poweredByHeader: false,
   // Bỏ qua kiểm tra lỗi khi build/dev để tăng tốc độ và giảm CPU

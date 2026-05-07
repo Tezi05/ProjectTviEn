@@ -103,3 +103,6 @@ export function GenericListView({ title, data, loading, error, trashView, onTabC
     </div>
   );
 }
+
+
+export default function DummyNextPage() { return null; }

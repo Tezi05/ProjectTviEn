@@ -21,3 +21,6 @@ export function RoleForm({ onSaved, onClose }: { onSaved: () => void; onClose: (
     </AddModal>
   );
 }
+
+
+export default function DummyNextPage() { return null; }

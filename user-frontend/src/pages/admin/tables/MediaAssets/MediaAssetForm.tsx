@@ -353,3 +353,6 @@ export function AddMediaAssetForm({ onClose, onSaved }: MediaAssetFormProps) {
     </div>
   );
 }
+
+
+export default function DummyNextPage() { return null; }

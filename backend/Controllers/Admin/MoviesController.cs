@@ -31,10 +31,8 @@ namespace ProjectTviEn.Controllers.Admin
 
         [HttpGet]
         public async Task<IActionResult> GetMovies() {
-            var camelCase = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
-            
-            // Xóa bỏ cache hoàn toàn để sửa lỗi dữ liệu cũ bị kẹt
-            await _cache.RemoveAsync(MoviesCacheKey); 
+            // Xóa cache (Redis optional - nếu không có Redis thì bỏ qua)
+            try { await _cache.RemoveAsync(MoviesCacheKey); } catch { }
 
             var moviesRaw = await _context.Movies.Where(m => !m.IsDeleted).Select(m => new {
                 m.Id, 
@@ -69,7 +67,6 @@ namespace ProjectTviEn.Controllers.Admin
                 JobStatus = _context.IngestJobs.Where(j => j.MovieId == m.Id).OrderByDescending(j => j.CreatedAt).Select(j => new { j.Status, j.Logs, j.FinishedAt }).FirstOrDefault()
             }).ToList();
 
-            await _cache.RemoveAsync(MoviesCacheKey); 
             return Ok(movies);
         }
 
@@ -175,7 +172,7 @@ namespace ProjectTviEn.Controllers.Admin
 
             _context.Movies.Add(movie);
             await _context.SaveChangesAsync();
-            await _cache.RemoveAsync(MoviesCacheKey);
+            try { await _cache.RemoveAsync(MoviesCacheKey); } catch { }
             return CreatedAtAction(nameof(GetMovieById), new { id = movie.Id }, movie);
         }
 
@@ -222,7 +219,7 @@ namespace ProjectTviEn.Controllers.Admin
 
             try {
                 await _context.SaveChangesAsync();
-                await _cache.RemoveAsync(MoviesCacheKey);
+                try { await _cache.RemoveAsync(MoviesCacheKey); } catch { }
                 return Ok(movie);
             } catch (Exception ex) {
                 return StatusCode(500, $"Lỗi lưu database: {ex.Message} {ex.InnerException?.Message}");
@@ -243,7 +240,7 @@ namespace ProjectTviEn.Controllers.Admin
             movie.PosterUrl = await _r2Service.UploadImageAsync(stream, "posters", fileName, 600, 900);
             
             await _context.SaveChangesAsync();
-            await _cache.RemoveAsync(MoviesCacheKey);
+            try { await _cache.RemoveAsync(MoviesCacheKey); } catch { }
             return Ok(new { url = movie.PosterUrl });
         }
 
@@ -259,11 +256,78 @@ namespace ProjectTviEn.Controllers.Admin
             movie.BackdropUrl = await _r2Service.UploadImageAsync(stream, "backdrops", fileName, 1920, 1080);
             
             await _context.SaveChangesAsync();
-            await _cache.RemoveAsync(MoviesCacheKey);
+            try { await _cache.RemoveAsync(MoviesCacheKey); } catch { }
             return Ok(new { url = movie.BackdropUrl });
         }
 
+        [HttpPost("{id}/generate-preview")]
+        public async Task<IActionResult> GeneratePreview(int id)
+        {
+            var movie = await _context.Movies.FindAsync(id);
+            if (movie == null) return NotFound();
+
+            // Tìm IngestJob để lấy đường dẫn raw video trên R2
+            var job = await _context.IngestJobs
+                .Where(j => j.MovieId == id && j.Status == "done" && j.RawPath != null)
+                .OrderByDescending(j => j.CreatedAt)
+                .FirstOrDefaultAsync();
+            if (job == null) return BadRequest(new { error = "Không tìm thấy IngestJob hoàn thành cho phim này" });
+
+            // Tìm Video record để lấy HLS prefix
+            var video = await _context.Videos
+                .FirstOrDefaultAsync(v => v.MovieId == id && !v.IsDeleted);
+            if (video == null || string.IsNullOrEmpty(video.MasterPlaylistUrl))
+                return BadRequest(new { error = "Chưa có HLS video. Ingest trước." });
+
+            string hlsR2Prefix = video.MasterPlaylistUrl.Substring(0, video.MasterPlaylistUrl.LastIndexOf('/') + 1);
+            string previewR2Key = $"{hlsR2Prefix}preview.mp4";
+
+            // Chạy generate preview bất đồng bộ (background)
+            _ = Task.Run(async () =>
+            {
+                var tempDir = Path.Combine(Path.GetTempPath(), $"preview_{id}_{Guid.NewGuid():N}");
+                Directory.CreateDirectory(tempDir);
+                string inputPath = Path.Combine(tempDir, "input.mp4");
+                string previewPath = Path.Combine(tempDir, "preview.mp4");
+                try
+                {
+                    // Tải raw video từ R2
+                    var r2 = HttpContext.RequestServices.GetRequiredService<Amazon.S3.IAmazonS3>();
+                    var r2Config = HttpContext.RequestServices.GetRequiredService<IConfiguration>();
+                    var bucket = r2Config["R2:BucketName"] ?? "";
+                    var transferUtil = new Amazon.S3.Transfer.TransferUtility(r2);
+                    await transferUtil.DownloadAsync(inputPath, bucket, job.RawPath!);
+
+                    // Chạy FFmpeg tạo preview
+                    var args = $"-nostdin -y -i \"{inputPath}\" -t 30 -vf scale=640:360 -c:v libx264 -crf 28 -preset ultrafast -an -movflags +faststart \"{previewPath}\"";
+                    var psi = new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = "ffmpeg", Arguments = args,
+                        UseShellExecute = false, CreateNoWindow = true,
+                        RedirectStandardError = false, RedirectStandardOutput = false
+                    };
+                    var proc = System.Diagnostics.Process.Start(psi)!;
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(120));
+                    try { await proc.WaitForExitAsync(cts.Token); }
+                    catch { proc.Kill(true); }
+
+                    if (proc.ExitCode == 0 && System.IO.File.Exists(previewPath))
+                    {
+                        await r2.PutObjectAsync(new Amazon.S3.Model.PutObjectRequest
+                        {
+                            BucketName = bucket, Key = previewR2Key,
+                            FilePath = previewPath, DisablePayloadSigning = true
+                        });
+                    }
+                }
+                finally { try { Directory.Delete(tempDir, true); } catch { } }
+            });
+
+            return Ok(new { message = $"Đang tạo preview cho Movie {id} trong nền. Preview sẽ sẵn sàng sau ~1-2 phút.", previewKey = previewR2Key });
+        }
+
         private async Task<IActionResult> GeneratePlayResponse(Movie movie) {
+
             try {
                 var video = await _context.Videos.FirstOrDefaultAsync(v => v.MovieId == movie.Id && !v.IsDeleted);
                 if (video == null) return NotFound(new { error = "ERR_VIDEO_NOT_FOUND", movieId = movie.Id });
@@ -287,10 +351,14 @@ namespace ProjectTviEn.Controllers.Admin
                 var tokenHandler = new JwtSecurityTokenHandler();
                 string tokenString = tokenHandler.WriteToken(tokenHandler.CreateToken(tokenDescriptor));
 
+                // ✅ Dynamic URL: dùng Request Host để tự động đúng cả local lẫn production
+                var baseUrl = _config["BackendUrl"] 
+                    ?? $"{Request.Scheme}://{Request.Host}";
+
                 return Ok(new { 
                     MovieId = movie.Id, 
                     Title = movie.Title, 
-                    PlayUrl = $"http://localhost:5113/api/public/gatekeeper/video/{movie.Id}/master.m3u8",
+                    PlayUrl = $"{baseUrl}/api/public/gatekeeper/video/{movie.Id}/master.m3u8",
                     Token = tokenString,
                     ExpiresInHours = expHours
                 });

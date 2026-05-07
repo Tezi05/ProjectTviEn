@@ -8,6 +8,9 @@ import {
   CProgressBar, CListGroup, CListGroupItem, CSpinner
 } from '@coreui/react'
 
+const CListGroupItemAny = CListGroupItem as any;
+const CProgressBarAny = CProgressBar as any;
+
 // ---- CONSTANTS ----
 const ENTITIES = [
   { id: 'movies',   label: '🎬 Movies',   api: 'admin/Movies' },
@@ -83,7 +86,7 @@ export default function Dashboard() {
     setLoading(true);
     try {
       const entity = ENTITIES.find(e => e.id === activeTab);
-      const res = await fetch(`http://localhost:5113/api/${entity?.api}`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5113/api'}/${entity?.api}`);
       if (!res.ok) { setData([]); return; }
       const json = await res.json();
       let list = Array.isArray(json) ? json : (Object.values(json).find(v => Array.isArray(v)) as any[]) || [];
@@ -97,7 +100,7 @@ export default function Dashboard() {
     if (!confirm('Xóa bản ghi này?')) return;
     try {
       const entity = ENTITIES.find(e => e.id === activeTab);
-      const res = await fetch(`http://localhost:5113/api/${entity?.api}/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5113/api'}/${entity?.api}/${id}`, { method: 'DELETE' });
       if (res.ok) fetchData();
     } catch (err) { alert('Lỗi mạng'); }
   }, [activeTab, fetchData]);
@@ -108,7 +111,7 @@ export default function Dashboard() {
     
     try {
       const entity = ENTITIES.find(e => e.id === activeTab);
-      const res = await fetch(`http://localhost:5113/api/${entity?.api}/${id}`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5113/api'}/${entity?.api}/${id}`);
       if (res.ok) {
         const fullItem = await res.json();
         // Chuẩn hóa dữ liệu GenreIds và CrewMembers cho DTO
@@ -136,7 +139,7 @@ export default function Dashboard() {
     try {
       const entity = ENTITIES.find(e => e.id === activeTab);
       const { jobStatus, JobStatus, createdAt, CreatedAt, ...payload } = editingItem;
-      const res = await fetch(`http://localhost:5113/api/${entity?.api}/${id}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5113/api'}/${entity?.api}/${id}`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
@@ -167,12 +170,12 @@ export default function Dashboard() {
       });
       if (!res.ok) throw new Error('ID đã tồn tại.');
       if (moviePosterFile) {
-        const presignedPoster = await fetch(`http://localhost:5113/api/admin/Movies/${movieIdInput}/upload-url?fileName=poster.jpg`).then(r => r.text());
+        const presignedPoster = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5113/api'}/admin/Movies/${movieIdInput}/upload-url?fileName=poster.jpg`).then(r => r.text());
         await uploadFileToR2(moviePosterFile, presignedPoster, () => {});
       }
-      const presignedVideo = await fetch(`http://localhost:5113/api/admin/Movies/${movieIdInput}/upload-url?fileName=raw.mp4`).then(r => r.text());
+      const presignedVideo = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5113/api'}/admin/Movies/${movieIdInput}/upload-url?fileName=raw.mp4`).then(r => r.text());
       await uploadFileToR2(movieFile, presignedVideo, p => setUploadProgress(p));
-      await fetch(`http://localhost:5113/api/admin/Movies/${movieIdInput}/ingest`, { method: 'POST' });
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5113/api'}/admin/Movies/${movieIdInput}/ingest`, { method: 'POST' });
       setUploadStatus('🚀 Đã gửi yêu cầu xử lý!'); setIsUploading(false); setUploadModal(false); fetchData();
     } catch (err: any) { alert(err.message); setIsUploading(false); }
   };
@@ -193,7 +196,7 @@ export default function Dashboard() {
         <CRow>
           <CCol md={2}>
             <CCard className="shadow-sm border-0 mb-4 rounded-3 overflow-hidden"><CCardHeader className="bg-white font-weight-bold py-2 small">📁 MANAGEMENT</CCardHeader>
-              <CListGroup flush>{ENTITIES.map(e => (<CListGroupItem key={e.id} component="button" active={activeTab === e.id} onClick={() => setActiveTab(e.id)} className="border-0 py-2 small text-start">{e.label}</CListGroupItem>))}</CListGroup>
+              <CListGroup flush>{ENTITIES.map(e => (<CListGroupItemAny key={e.id} component="button" active={activeTab === e.id} onClick={() => setActiveTab(e.id)} className="border-0 py-2 small text-start">{e.label}</CListGroupItemAny>))}</CListGroup>
             </CCard>
           </CCol>
           <CCol md={10}>
@@ -224,8 +227,8 @@ export default function Dashboard() {
             <div className="d-flex flex-column h-100">
               {activeTab === 'movies' && (
                 <div className="bg-light border-bottom px-3 py-2 d-flex gap-3">
-                  <CButton size="sm" variant={editTab === 'info' ? 'solid' : 'ghost'} color="primary" onClick={() => setEditTab('info')}>📝 Thông tin phim</CButton>
-                  <CButton size="sm" variant={editTab === 'video' ? 'solid' : 'ghost'} color="primary" onClick={() => setEditTab('video')}>📹 Quản lý Video</CButton>
+                  <CButton size="sm" variant={editTab === 'info' ? undefined : 'ghost'} color="primary" onClick={() => setEditTab('info')}>📝 Thông tin phim</CButton>
+                  <CButton size="sm" variant={editTab === 'video' ? undefined : 'ghost'} color="primary" onClick={() => setEditTab('video')}>📹 Quản lý Video</CButton>
                 </div>
               )}
 
@@ -352,7 +355,7 @@ export default function Dashboard() {
                             const file = e.target.files?.[0];
                             if(!file) return;
                             const formData = new FormData(); formData.append('file', file);
-                            const res = await fetch(`http://localhost:5113/api/admin/Movies/${editingItem.id}/upload-poster`, { method: 'POST', body: formData });
+                            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5113/api'}/admin/Movies/${editingItem.id}/upload-poster`, { method: 'POST', body: formData });
                             if(res.ok) { const json = await res.json(); setEditingItem({...editingItem, posterUrl: json.url}); }
                           }} />
                         </CCardBody>
@@ -367,7 +370,7 @@ export default function Dashboard() {
                             const file = e.target.files?.[0];
                             if(!file) return;
                             const formData = new FormData(); formData.append('file', file);
-                            const res = await fetch(`http://localhost:5113/api/admin/Movies/${editingItem.id}/upload-backdrop`, { method: 'POST', body: formData });
+                            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5113/api'}/admin/Movies/${editingItem.id}/upload-backdrop`, { method: 'POST', body: formData });
                             if(res.ok) { const json = await res.json(); setEditingItem({...editingItem, backdropUrl: json.url}); }
                           }} />
                         </CCardBody>
@@ -438,7 +441,7 @@ export default function Dashboard() {
       {/* UPLOAD MODAL */}
       <CModal visible={uploadModal} onClose={() => !isUploading && setUploadModal(false)} size="lg" backdrop="static">
         <CModalHeader><CModalTitle className="fs-6 fw-bold">🎬 Add Movie</CModalTitle></CModalHeader>
-        <CModalBody>{isUploading ? (<div className="p-4 text-center"><h6 className="mb-3">{uploadStatus}</h6><CProgress height={25}><CProgressBar value={uploadProgress} animated striped color="success">{uploadProgress}%</CProgressBar></CProgress></div>) : (<div className="container-fluid">
+        <CModalBody>{isUploading ? (<div className="p-4 text-center"><h6 className="mb-3">{uploadStatus}</h6><CProgress height={25}><CProgressBarAny value={uploadProgress} animated striped color="success">{uploadProgress}%</CProgressBarAny></CProgress></div>) : (<div className="container-fluid">
           <CRow className="g-3 mb-3">
             <CCol md={3}><CFormInput label="ID (*)" size="sm" value={movieIdInput} onChange={e => setMovieIdInput(e.target.value)} /></CCol>
             <CCol md={6}><CFormInput label="Title (*)" size="sm" value={movieTitle} onChange={e => setMovieTitle(e.target.value)} /></CCol>

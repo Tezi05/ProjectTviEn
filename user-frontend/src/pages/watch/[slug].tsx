@@ -24,7 +24,7 @@ export default function WatchPage() {
 
   useEffect(() => {
     if (!slug) return;
-    fetch(`http://localhost:5113/api/admin/Movies/slug/${slug}/play`)
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5113/api'}/admin/Movies/slug/${slug}/play`)
       .then(res => res.json())
       .then(json => { setData(json); setLoading(false); });
   }, [slug]);
