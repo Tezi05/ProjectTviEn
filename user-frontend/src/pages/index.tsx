@@ -18,7 +18,9 @@ interface Movie {
  
 // ─── Constants ────────────────────────────────────────────────────────────────
 const WORKER_URL = process.env.NEXT_PUBLIC_WORKER_URL ?? 'http://localhost:5113/api/public/gatekeeper';
-const API_URL    = process.env.NEXT_PUBLIC_API_URL    ?? 'http://localhost:5113/api/admin/Movies';
+const BASE_API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5113/api';
+const API_URL      = `${BASE_API_URL.replace(/\/$/, '')}/admin/Movies`;
+
  
 function getISOWeek(date: Date): number {
   const startDate = new Date(date.getFullYear(), 0, 1);
