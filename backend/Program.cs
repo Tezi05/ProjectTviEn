@@ -205,6 +205,13 @@ namespace ProjectTviEn
                 }
             });
 
+            app.MapGet("/api/debug-db", () =>
+            {
+                var parts = connectionString.Split(';');
+                var safeParts = parts.Select(p => p.Trim().StartsWith("Password", StringComparison.OrdinalIgnoreCase) ? "Password=REDACTED" : p);
+                return Results.Ok(new { ConnectionString = string.Join(";", safeParts) });
+            });
+
             app.MapControllers();
             app.Run();
         }
