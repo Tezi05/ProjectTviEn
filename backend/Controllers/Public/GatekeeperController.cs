@@ -119,8 +119,15 @@ namespace ProjectTviEn.Controllers.Public
                                 if (urlEnd != -1)
                                 {
                                     string originalUrl = line.Substring(urlStart, urlEnd - urlStart);
-                                    var separator = originalUrl.Contains("?") ? "&" : "?";
-                                    string newUrl = $"{originalUrl}{separator}token={token}";
+                                    
+                                    // Trích xuất ID khóa bằng cách lấy phần cuối cùng của đường dẫn (loại bỏ query nếu có)
+                                    string keyId = originalUrl;
+                                    int qPos = keyId.IndexOf('?');
+                                    if (qPos != -1) keyId = keyId.Substring(0, qPos);
+                                    keyId = keyId.Substring(keyId.LastIndexOf('/') + 1);
+
+                                    // Tạo URL tuyệt đối động trỏ về backend hiện tại (Local hoặc Render)
+                                    string newUrl = $"{Request.Scheme}://{Request.Host}/api/public/keys/{keyId}?token={token}";
                                     newContent.AppendLine(line.Replace(originalUrl, newUrl));
                                     continue;
                                 }

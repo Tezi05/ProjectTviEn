@@ -67,7 +67,9 @@ export default function WatchPage() {
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (videoRef.current) {
-      const newTime = (parseFloat(e.target.value) / 100) * videoRef.current.duration;
+      const dur = videoRef.current.duration;
+      if (isNaN(dur) || !isFinite(dur)) return;
+      const newTime = (parseFloat(e.target.value) / 100) * dur;
       videoRef.current.currentTime = newTime;
       setProgress(parseFloat(e.target.value));
     }
@@ -80,14 +82,16 @@ export default function WatchPage() {
 
   const togglePlay = () => {
     if (!videoRef.current) return;
-    if (videoRef.current.paused) { videoRef.current.play(); setIsPlaying(true); }
+    if (videoRef.current.paused) { videoRef.current.play().catch(() => {}); setIsPlaying(true); }
     else { videoRef.current.pause(); setIsPlaying(false); }
   };
 
   const seek = (amount: number) => {
     if (videoRef.current) {
+      const dur = videoRef.current.duration;
+      if (isNaN(dur) || !isFinite(dur)) return;
       const wasPlaying = !videoRef.current.paused;
-      videoRef.current.currentTime = Math.max(0, Math.min(videoRef.current.duration, videoRef.current.currentTime + amount));
+      videoRef.current.currentTime = Math.max(0, Math.min(dur, videoRef.current.currentTime + amount));
       if (wasPlaying) videoRef.current.play().catch(() => {});
     }
   };

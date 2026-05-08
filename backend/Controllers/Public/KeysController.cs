@@ -16,6 +16,8 @@ namespace ProjectTviEn.Controllers.Public
         {
             "localhost",
             "tvien.com",  // Thay bằng domain thật của bạn
+            "vercel.app",
+            "onrender.com"
         };
 
         public KeysController(AppDbContext db, ILogger<KeysController> logger)
