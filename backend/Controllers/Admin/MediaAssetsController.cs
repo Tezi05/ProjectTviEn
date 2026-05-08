@@ -22,31 +22,29 @@ namespace ProjectTviEn.Controllers.Admin
 
         [HttpPost("upload")]
         [RequestSizeLimit(2000000000)] // 2GB
-        [Consumes("multipart/form-data")] // ✅ Bắt buộc để Swashbuckle generate đúng với IFormFile
-        public async Task<IActionResult> UploadMedia(
-            [FromForm] IFormFile file,
-            [FromForm] string movieId,
-            [FromForm] string assetType,
-            [FromForm] bool autoIngest,
-            [FromForm] string? episodeId = null)
+        [Consumes("multipart/form-data")] // ✅ Bắt buộc để Swashbuckle generate đúng
+        public async Task<IActionResult> UploadMedia([FromForm] UploadMediaRequest request)
         {
+            var file = request.File;
             if (file == null || file.Length == 0)
                 return BadRequest("Lỗi: Không tìm thấy file.");
 
-            if (!int.TryParse(movieId, out int movieIntId))
-                return BadRequest($"Lỗi: MovieId '{movieId}' không hợp lệ.");
+            if (!int.TryParse(request.MovieId, out int movieIntId))
+                return BadRequest($"Lỗi: MovieId '{request.MovieId}' không hợp lệ.");
 
             Guid? episodeGuid = null;
-            if (!string.IsNullOrEmpty(episodeId) && Guid.TryParse(episodeId, out Guid eGuid))
+            if (!string.IsNullOrEmpty(request.EpisodeId) && Guid.TryParse(request.EpisodeId, out Guid eGuid))
                 episodeGuid = eGuid;
+
 
             try
             {
                 // 1. Upload file thô lên R2
-                var key = $"raw/{movieId}/{Guid.NewGuid():N}_{file.FileName}";
+                var key = $"raw/{request.MovieId}/{Guid.NewGuid():N}_{file.FileName}";
                 using var stream = file.OpenReadStream();
                 var uploadSuccess = await _r2Service.UploadFileAsync(key, stream, file.ContentType);
                 if (!uploadSuccess) return StatusCode(500, "Lỗi: Upload lên R2 thất bại.");
+
 
                 // 2. Lưu MediaAsset vào DB
                 var asset = new MediaAsset
@@ -55,13 +53,13 @@ namespace ProjectTviEn.Controllers.Admin
                     MovieId = movieIntId,
                     EpisodeId = episodeGuid,
                     Path = key,
-                    Type = assetType,
+                    Type = request.AssetType,
                     CreatedAt = DateTime.UtcNow
                 };
                 _context.MediaAssets.Add(asset);
 
                 // 3. Tạo IngestJob + Push vào Redis Queue để Worker xử lý
-                if (autoIngest && (assetType == "MainVideo" || assetType == "Video luồng chính"))
+                if (request.AutoIngest && (request.AssetType == "MainVideo" || request.AssetType == "Video luồng chính"))
                 {
                     var job = new IngestJob
                     {

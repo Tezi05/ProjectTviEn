@@ -229,13 +229,13 @@ namespace ProjectTviEn.Controllers.Admin
         // --- END IMAGE URL ---
 
         [HttpPost("{id}/upload-poster")]
-        [Consumes("multipart/form-data")] // ✅ Fix Swagger IFormFile
-        public async Task<IActionResult> UploadPoster(int id, IFormFile file) {
-            if (file == null || file.Length == 0) return BadRequest("File không hợp lệ");
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> UploadPoster(int id, [FromForm] FileUploadRequest request) {
+            if (request.File == null || request.File.Length == 0) return BadRequest("File không hợp lệ");
             var movie = await _context.Movies.FindAsync(id);
             if (movie == null) return NotFound();
 
-            using var stream = file.OpenReadStream();
+            using var stream = request.File.OpenReadStream();
             string fileName = $"poster_{id}_{DateTime.UtcNow.Ticks}";
             // Poster tỷ lệ 2:3 -> 600x900
             movie.PosterUrl = await _r2Service.UploadImageAsync(stream, "posters", fileName, 600, 900);
@@ -246,13 +246,13 @@ namespace ProjectTviEn.Controllers.Admin
         }
 
         [HttpPost("{id}/upload-backdrop")]
-        [Consumes("multipart/form-data")] // ✅ Fix Swagger IFormFile
-        public async Task<IActionResult> UploadBackdrop(int id, IFormFile file) {
-            if (file == null || file.Length == 0) return BadRequest("File không hợp lệ");
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> UploadBackdrop(int id, [FromForm] FileUploadRequest request) {
+            if (request.File == null || request.File.Length == 0) return BadRequest("File không hợp lệ");
             var movie = await _context.Movies.FindAsync(id);
             if (movie == null) return NotFound();
 
-            using var stream = file.OpenReadStream();
+            using var stream = request.File.OpenReadStream();
             string fileName = $"backdrop_{id}_{DateTime.UtcNow.Ticks}";
             // Backdrop tỷ lệ 16:9 -> 1920x1080
             movie.BackdropUrl = await _r2Service.UploadImageAsync(stream, "backdrops", fileName, 1920, 1080);
