@@ -353,9 +353,14 @@ namespace ProjectTviEn.Controllers.Admin
                 var tokenHandler = new JwtSecurityTokenHandler();
                 string tokenString = tokenHandler.WriteToken(tokenHandler.CreateToken(tokenDescriptor));
 
-                // ✅ Dynamic URL: dùng Request Host để tự động đúng cả local lẫn production
+                // ✅ Dynamic URL: đọc X-Forwarded-Proto từ Reverse Proxy (Render) hoặc nhận diện onrender.com để trả về đúng https, tránh Mixed Content
+                var scheme = Request.Headers["X-Forwarded-Proto"].ToString();
+                if (string.IsNullOrEmpty(scheme)) {
+                    scheme = Request.Host.Host.Contains("onrender.com") ? "https" : Request.Scheme;
+                }
+                
                 var baseUrl = _config["BackendUrl"] 
-                    ?? $"{Request.Scheme}://{Request.Host}";
+                    ?? $"{scheme}://{Request.Host}";
 
                 return Ok(new { 
                     MovieId = movie.Id, 
