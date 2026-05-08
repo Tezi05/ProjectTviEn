@@ -73,9 +73,10 @@ namespace ProjectTviEn
                 options.AddPolicy("AllowFrontend", policy =>
                 {
                     policy.WithOrigins(
-                        "https://tvien-xxx.vercel.app",  // TODO: Thay bằng URL Vercel thật của bạn
-                        "http://localhost:3000",         // User frontend
-                        "http://localhost:3001"          // Admin frontend (nếu có)
+                        "https://project-tvi-en.vercel.app",                                    // ✅ URL chính Vercel
+                        "https://project-tvi-en-git-master-tezi05s-projects.vercel.app",        // ✅ URL preview branch Vercel
+                        "http://localhost:3000",                                                 // Local user-frontend
+                        "http://localhost:3001"                                                  // Local admin-frontend
                     )
                     .AllowAnyHeader()
                     .AllowAnyMethod()
