@@ -11,9 +11,9 @@ namespace ProjectTviEn.Controllers.Admin
     {
         private readonly AppDbContext _context;
         private readonly IR2Service _r2Service;
-        private readonly IConnectionMultiplexer _redis;
+        private readonly IConnectionMultiplexer? _redis;
 
-        public MediaAssetsController(AppDbContext context, IR2Service r2Service, IConnectionMultiplexer redis)
+        public MediaAssetsController(AppDbContext context, IR2Service r2Service, IConnectionMultiplexer? redis = null)
         {
             _context = context;
             _r2Service = r2Service;
@@ -22,6 +22,7 @@ namespace ProjectTviEn.Controllers.Admin
 
         [HttpPost("upload")]
         [RequestSizeLimit(2000000000)] // 2GB
+        [Consumes("multipart/form-data")] // ✅ Bắt buộc để Swashbuckle generate đúng với IFormFile
         public async Task<IActionResult> UploadMedia(
             [FromForm] IFormFile file,
             [FromForm] string movieId,
@@ -74,9 +75,23 @@ namespace ProjectTviEn.Controllers.Admin
                     _context.IngestJobs.Add(job);
                     await _context.SaveChangesAsync();
 
-                    // ✅ Push JobId vào Redis Queue để Worker nhận và xử lý
-                    var db = _redis.GetDatabase();
-                    await db.ListLeftPushAsync("tvien:ingest_queue", job.JobId);
+                    // ✅ Push JobId vào Redis Queue (nếu Redis sẵn sàng)
+                    try
+                    {
+                        if (_redis != null && _redis.IsConnected)
+                        {
+                            var db = _redis.GetDatabase();
+                            await db.ListLeftPushAsync("tvien:ingest_queue", job.JobId);
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[WARN] Redis không kết nối - Job {job.JobId} đã lưu DB nhưng chưa push queue.");
+                        }
+                    }
+                    catch (Exception redisEx)
+                    {
+                        Console.WriteLine($"[WARN] Redis push lỗi: {redisEx.Message}. Job vẫn được lưu.");
+                    }
 
                     return Ok(new { asset, job });
                 }
