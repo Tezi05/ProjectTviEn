@@ -229,6 +229,7 @@ namespace ProjectTviEn.Controllers.Admin
         // --- END IMAGE URL ---
 
         [HttpPost("{id}/upload-poster")]
+        [Consumes("multipart/form-data")] // ✅ Fix Swagger IFormFile
         public async Task<IActionResult> UploadPoster(int id, IFormFile file) {
             if (file == null || file.Length == 0) return BadRequest("File không hợp lệ");
             var movie = await _context.Movies.FindAsync(id);
@@ -245,6 +246,7 @@ namespace ProjectTviEn.Controllers.Admin
         }
 
         [HttpPost("{id}/upload-backdrop")]
+        [Consumes("multipart/form-data")] // ✅ Fix Swagger IFormFile
         public async Task<IActionResult> UploadBackdrop(int id, IFormFile file) {
             if (file == null || file.Length == 0) return BadRequest("File không hợp lệ");
             var movie = await _context.Movies.FindAsync(id);
