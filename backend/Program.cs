@@ -17,9 +17,17 @@ namespace ProjectTviEn
                 source.ReloadOnChange = false;
             }
 
-            // ✅ Hỗ trợ cả 2 format: key-value (local) và URL (Neon/Render production)
-            var rawConn = builder.Configuration.GetConnectionString("DefaultConnection")
-                ?? Environment.GetEnvironmentVariable("DATABASE_URL")
+            // ✅ Cấu hình Forwarded Headers để nhận diện đúng HTTPS từ Reverse Proxy của Render
+            builder.Services.Configure<Microsoft.AspNetCore.Builder.ForwardedHeadersOptions>(options =>
+            {
+                options.ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedFor | Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto;
+                options.KnownNetworks.Clear();
+                options.KnownProxies.Clear();
+            });
+
+            // ✅ Ưu tiên DATABASE_URL từ biến môi trường (Render/Neon) trước, nếu không có mới dùng DefaultConnection từ appsettings.json (local)
+            var rawConn = Environment.GetEnvironmentVariable("DATABASE_URL")
+                ?? builder.Configuration.GetConnectionString("DefaultConnection")
                 ?? "";
 
             // Tự động convert nếu là URL dạng postgresql:// hoặc postgres://
@@ -84,7 +92,16 @@ namespace ProjectTviEn
                 });
             });
 
-            var redisConnection = (builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379") + ",abortConnect=false,connectTimeout=3000,syncTimeout=3000";
+            var rawRedis = Environment.GetEnvironmentVariable("REDIS_URL")
+                ?? Environment.GetEnvironmentVariable("REDIS_EXTERNAL_URL")
+                ?? builder.Configuration.GetConnectionString("Redis")
+                ?? "localhost:6379";
+            
+            if (rawRedis.StartsWith("redis://"))
+            {
+                rawRedis = rawRedis.Replace("redis://", "");
+            }
+            var redisConnection = rawRedis + ",abortConnect=false,connectTimeout=3000,syncTimeout=3000";
             builder.Services.AddStackExchangeRedisCache(options =>
             {
                 options.Configuration = redisConnection;
@@ -127,6 +144,9 @@ namespace ProjectTviEn
             });
 
             var app = builder.Build();
+
+            // ✅ Kích hoạt Forwarded Headers ở đầu pipeline để các middleware khác (Swagger, v.v.) nhận đúng Host/Scheme
+            app.UseForwardedHeaders();
 
             try 
             {

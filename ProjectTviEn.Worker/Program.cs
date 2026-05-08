@@ -16,8 +16,57 @@ var configuration = new ConfigurationBuilder()
     .AddJsonFile("appsettings.json")
     .Build();
 
-var connectionString   = configuration.GetConnectionString("DefaultConnection");
-var redisConnectionStr = configuration.GetConnectionString("Redis") ?? "localhost:6379";
+var rawConn = Environment.GetEnvironmentVariable("DATABASE_URL")
+    ?? configuration.GetConnectionString("DefaultConnection")
+    ?? "";
+
+string connectionString;
+if (rawConn.StartsWith("postgresql://") || rawConn.StartsWith("postgres://"))
+{
+    // Parse thủ công để tránh lấy nhầm port 80 khi dùng Uri với http://
+    var stripped = rawConn.Replace("postgresql://", "").Replace("postgres://", "");
+    var atIdx = stripped.IndexOf('@');
+    var userInfo = stripped.Substring(0, atIdx);
+    var hostAndRest = stripped.Substring(atIdx + 1);
+
+    var userParts = userInfo.Split(':', 2);
+    var username = Uri.UnescapeDataString(userParts[0]);
+    var password = userParts.Length > 1 ? Uri.UnescapeDataString(userParts[1]) : "";
+
+    var slashIdx = hostAndRest.IndexOf('/');
+    var hostPart = slashIdx >= 0 ? hostAndRest.Substring(0, slashIdx) : hostAndRest;
+    var dbAndParams = slashIdx >= 0 ? hostAndRest.Substring(slashIdx + 1) : "";
+
+    var colonIdx = hostPart.LastIndexOf(':');
+    string dbHost; int dbPort;
+    if (colonIdx >= 0 && int.TryParse(hostPart.Substring(colonIdx + 1), out dbPort))
+        dbHost = hostPart.Substring(0, colonIdx);
+    else { dbHost = hostPart; dbPort = 5432; }
+
+    var qIdx = dbAndParams.IndexOf('?');
+    var database = Uri.UnescapeDataString(qIdx >= 0 ? dbAndParams.Substring(0, qIdx) : dbAndParams);
+    var queryStr = qIdx >= 0 ? dbAndParams.Substring(qIdx + 1) : "";
+    var sslMode = "require";
+    foreach (var p in queryStr.Split('&'))
+        if (p.StartsWith("sslmode=")) sslMode = p.Substring(8);
+
+    connectionString = $"Host={dbHost};Port={dbPort};Database={database};Username={username};Password={password};SSL Mode={sslMode};Trust Server Certificate=true";
+}
+else
+{
+    connectionString = rawConn;
+}
+
+var rawRedis = Environment.GetEnvironmentVariable("REDIS_URL")
+    ?? Environment.GetEnvironmentVariable("REDIS_EXTERNAL_URL")
+    ?? configuration.GetConnectionString("Redis")
+    ?? "localhost:6379";
+
+if (rawRedis.StartsWith("redis://"))
+{
+    rawRedis = rawRedis.Replace("redis://", "");
+}
+var redisConnectionStr = rawRedis;
 var ffmpegCodec        = configuration["FFmpegConfig:VideoCodec"] ?? "libx264";
 var ffmpegThreads      = configuration["FFmpegConfig:Threads"]    ?? "2";
 var ffmpegPreset       = configuration["FFmpegConfig:Preset"]     ?? "ultrafast";
