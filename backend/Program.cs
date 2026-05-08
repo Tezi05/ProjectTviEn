@@ -65,7 +65,7 @@ namespace ProjectTviEn
                 options.InstanceName = "tvien:";
             });
 
-            // ✅ Redis optional: nếu không có Redis (Render free tier) thì bỏ qua, không crash app
+            // ✅ Redis optional: nếu không có Redis thì dùng lazy connect (abortConnect=false)
             try
             {
                 var redisMux = StackExchange.Redis.ConnectionMultiplexer.Connect(redisConnection);
@@ -74,10 +74,10 @@ namespace ProjectTviEn
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[WARN] Redis unavailable ({ex.Message}). Continuing without Redis.");
-                // Đăng ký null-object để tránh DI lỗi nếu có controller inject IConnectionMultiplexer
+                Console.WriteLine($"[WARN] Redis unavailable ({ex.Message}). Using lazy connection.");
+                // Dùng lazy factory - không throw khi chưa kết nối được
                 builder.Services.AddSingleton<StackExchange.Redis.IConnectionMultiplexer>(
-                    StackExchange.Redis.ConnectionMultiplexer.Connect("localhost:6379,abortConnect=false,connectTimeout=100")
+                    sp => StackExchange.Redis.ConnectionMultiplexer.Connect("localhost:6379,abortConnect=false")
                 );
             }
 
@@ -122,8 +122,8 @@ namespace ProjectTviEn
 
             app.UseCors("AllowFrontend");
             app.UseAuthorization();
-            app.UseHttpMetrics();
-            app.MapMetrics();
+            // ✅ Prometheus metrics - optional, bỏ qua nếu lỗi
+            try { app.UseHttpMetrics(); app.MapMetrics(); } catch { Console.WriteLine("[WARN] Prometheus metrics unavailable."); }
 
             app.MapPost("/api/admin/seed", async (AppDbContext db) =>
             {
