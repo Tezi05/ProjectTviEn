@@ -26,11 +26,36 @@ namespace ProjectTviEn
             string connectionString;
             if (rawConn.StartsWith("postgresql://") || rawConn.StartsWith("postgres://"))
             {
-                var uri = new Uri(rawConn.Replace("postgresql://", "http://").Replace("postgres://", "http://"));
-                var userInfo = uri.UserInfo.Split(':');
-                var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
-                var sslMode = query["sslmode"] ?? "require";
-                connectionString = $"Host={uri.Host};Port={(uri.Port > 0 ? uri.Port : 5432)};Database={uri.AbsolutePath.TrimStart('/')};Username={userInfo[0]};Password={Uri.UnescapeDataString(userInfo.Length > 1 ? userInfo[1] : "")};SSL Mode={sslMode};Trust Server Certificate=true";
+                // Parse thủ công để tránh lấy nhầm port 80 khi dùng Uri với http://
+                var stripped = rawConn.Replace("postgresql://", "").Replace("postgres://", "");
+                var atIdx = stripped.IndexOf('@');
+                var userInfo = stripped.Substring(0, atIdx);
+                var hostAndRest = stripped.Substring(atIdx + 1);
+
+                var userParts = userInfo.Split(':', 2);
+                var username = Uri.UnescapeDataString(userParts[0]);
+                var password = userParts.Length > 1 ? Uri.UnescapeDataString(userParts[1]) : "";
+
+                var slashIdx = hostAndRest.IndexOf('/');
+                var hostPart = slashIdx >= 0 ? hostAndRest.Substring(0, slashIdx) : hostAndRest;
+                var dbAndParams = slashIdx >= 0 ? hostAndRest.Substring(slashIdx + 1) : "";
+
+                // Tách host và port (ầu mặc PostgreSQL là 5432)
+                var colonIdx = hostPart.LastIndexOf(':');
+                string dbHost; int dbPort;
+                if (colonIdx >= 0 && int.TryParse(hostPart.Substring(colonIdx + 1), out dbPort))
+                    dbHost = hostPart.Substring(0, colonIdx);
+                else { dbHost = hostPart; dbPort = 5432; }
+
+                var qIdx = dbAndParams.IndexOf('?');
+                var database = Uri.UnescapeDataString(qIdx >= 0 ? dbAndParams.Substring(0, qIdx) : dbAndParams);
+                var queryStr = qIdx >= 0 ? dbAndParams.Substring(qIdx + 1) : "";
+                var sslMode = "require";
+                foreach (var p in queryStr.Split('&'))
+                    if (p.StartsWith("sslmode=")) sslMode = p.Substring(8);
+
+                connectionString = $"Host={dbHost};Port={dbPort};Database={database};Username={username};Password={password};SSL Mode={sslMode};Trust Server Certificate=true";
+                Console.WriteLine($"[INFO] DB parsed: Host={dbHost} Port={dbPort} DB={database} SSL={sslMode}");
             }
             else
             {
@@ -90,7 +115,15 @@ namespace ProjectTviEn
                 });
 
             builder.Services.AddEndpointsApiExplorer();
-            builder.Services.AddSwaggerGen();
+            // ✅ Cấu hình Swagger hỗ trợ IFormFile (multipart/form-data) không bị crash
+            builder.Services.AddSwaggerGen(c =>
+            {
+                c.MapType<IFormFile>(() => new Microsoft.OpenApi.Models.OpenApiSchema
+                {
+                    Type = "string",
+                    Format = "binary"
+                });
+            });
 
             var app = builder.Build();
 
