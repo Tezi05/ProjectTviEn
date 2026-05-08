@@ -58,16 +58,29 @@ namespace ProjectTviEn
                 });
             });
 
-            var redisConnection = (builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379") + ",abortConnect=false";
+            var redisConnection = (builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379") + ",abortConnect=false,connectTimeout=3000,syncTimeout=3000";
             builder.Services.AddStackExchangeRedisCache(options =>
             {
                 options.Configuration = redisConnection;
                 options.InstanceName = "tvien:";
             });
 
-            builder.Services.AddSingleton<StackExchange.Redis.IConnectionMultiplexer>(
-                StackExchange.Redis.ConnectionMultiplexer.Connect(redisConnection)
-            );
+            // ✅ Redis optional: nếu không có Redis (Render free tier) thì bỏ qua, không crash app
+            try
+            {
+                var redisMux = StackExchange.Redis.ConnectionMultiplexer.Connect(redisConnection);
+                builder.Services.AddSingleton<StackExchange.Redis.IConnectionMultiplexer>(redisMux);
+                Console.WriteLine("[INFO] Redis connected OK.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WARN] Redis unavailable ({ex.Message}). Continuing without Redis.");
+                // Đăng ký null-object để tránh DI lỗi nếu có controller inject IConnectionMultiplexer
+                builder.Services.AddSingleton<StackExchange.Redis.IConnectionMultiplexer>(
+                    StackExchange.Redis.ConnectionMultiplexer.Connect("localhost:6379,abortConnect=false,connectTimeout=100")
+                );
+            }
+
 
             builder.Services.AddControllers()
                 .AddJsonOptions(options =>
