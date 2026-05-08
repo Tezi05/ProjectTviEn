@@ -76,11 +76,19 @@ namespace ProjectTviEn.Controllers.Public
                 r2Key = $"stream/{movieId}/{filePath}";
             }
 
-            string presignedUrl = _r2Service.GeneratePresignedDownloadUrl(r2Key);
+            string targetUrl = "";
+            if (r2Key.StartsWith("http://") || r2Key.StartsWith("https://"))
+            {
+                targetUrl = r2Key;
+            }
+            else
+            {
+                targetUrl = _r2Service.GeneratePresignedDownloadUrl(r2Key);
+            }
             
             try {
                 var httpClient = new HttpClient();
-                var response = await httpClient.GetAsync(presignedUrl, HttpCompletionOption.ResponseHeadersRead);
+                var response = await httpClient.GetAsync(targetUrl, HttpCompletionOption.ResponseHeadersRead);
                 if (!response.IsSuccessStatusCode) return StatusCode((int)response.StatusCode);
 
                 var contentType = response.Content.Headers.ContentType?.ToString() ?? "application/octet-stream";
