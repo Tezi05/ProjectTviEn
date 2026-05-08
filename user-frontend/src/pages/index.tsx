@@ -133,8 +133,21 @@ export default function CinemaApp() {
   const [movies, setMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('cinema');
  
+  // Sync Escape key to close Search Overlay
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setSearchOpen(false);
+        setSearchQuery('');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   // 1. Sync Tab from URL
   useEffect(() => {
     if (urlTab) setActiveTab(urlTab as string);
@@ -248,6 +261,81 @@ export default function CinemaApp() {
         <footer className="w-full py-24 bg-[#0A0A0A] mt-24 border-t border-white/5 text-center">
           <p className="text-[10px] tracking-[0.4em] uppercase text-white/10">© 2026 TVIEN. THE VOID IS CALLING.</p>
         </footer>
+
+        {/* Search Overlay */}
+        {searchOpen && (
+          <div className="fixed inset-0 z-50 bg-[#131313]/98 backdrop-blur-3xl animate-fade-in flex flex-col p-8 md:p-16 overflow-y-auto">
+            <div className="flex justify-between items-center max-w-[1600px] w-full mx-auto mb-16">
+              <span className="text-[11px] tracking-[0.25em] uppercase font-bold text-white/40">Search Movies</span>
+              <button 
+                onClick={() => { setSearchOpen(false); setSearchQuery(''); }} 
+                className="text-white/60 hover:text-white transition-colors p-2 hover:scale-110 duration-200"
+              >
+                <X className="w-8 h-8" strokeWidth={1} />
+              </button>
+            </div>
+
+            <div className="max-w-[1600px] w-full mx-auto flex-1 flex flex-col">
+              <div className="relative mb-16 border-b border-white/10 pb-4 focus-within:border-white transition-colors duration-300 flex items-center">
+                <Search className="w-8 h-8 text-white/40 mr-4" strokeWidth={1.5} />
+                <input 
+                  type="text" 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Type to search movies, genres..." 
+                  className="w-full bg-transparent text-3xl md:text-5xl font-serif text-white placeholder-white/20 border-none outline-none focus:ring-0"
+                  autoFocus
+                />
+                {searchQuery && (
+                  <button onClick={() => setSearchQuery('')} className="text-white/40 hover:text-white p-2">
+                    <X className="w-5 h-5" />
+                  </button>
+                )}
+              </div>
+
+              <div className="flex-1">
+                {searchQuery.trim() === '' ? (
+                  <div className="animate-fade-in">
+                    <h3 className="text-white/40 text-xs font-bold uppercase tracking-[0.2em] mb-8">Popular Suggestions</h3>
+                    <div className="flex flex-wrap gap-4">
+                      {movies.slice(0, 6).map(m => (
+                        <button 
+                          key={m.id}
+                          onClick={() => setSearchQuery(m.title)}
+                          className="px-6 py-3 bg-white/5 hover:bg-white/10 transition border border-white/5 hover:border-white/20 rounded-sm text-white/80 text-xs tracking-wider font-light"
+                        >
+                          {m.title}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="animate-fade-in">
+                    <h3 className="text-white/40 text-xs font-bold uppercase tracking-[0.2em] mb-12">
+                      Search Results ({movies.filter(m => m.title.toLowerCase().includes(searchQuery.toLowerCase()) || m.description?.toLowerCase().includes(searchQuery.toLowerCase())).length})
+                    </h3>
+                    
+                    {movies.filter(m => m.title.toLowerCase().includes(searchQuery.toLowerCase()) || m.description?.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 ? (
+                      <div className="py-20 text-center border border-dashed border-white/5 rounded-sm bg-white/[0.01]">
+                        <p className="text-white/30 text-lg font-light tracking-wide">No movies match your search query.</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-8">
+                        {movies
+                          .filter(m => m.title.toLowerCase().includes(searchQuery.toLowerCase()) || m.description?.toLowerCase().includes(searchQuery.toLowerCase()))
+                          .map(m => (
+                            <div key={m.id} onClick={() => { setSearchOpen(false); setSearchQuery(''); }} className="transform hover:scale-105 transition-transform duration-300">
+                              <HoverPlayer {...m} />
+                            </div>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
