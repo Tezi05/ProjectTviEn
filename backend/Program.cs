@@ -17,8 +17,29 @@ namespace ProjectTviEn
                 source.ReloadOnChange = false;
             }
 
+            // ✅ Hỗ trợ cả 2 format: key-value (local) và URL (Neon/Render production)
+            var rawConn = builder.Configuration.GetConnectionString("DefaultConnection")
+                ?? Environment.GetEnvironmentVariable("DATABASE_URL")
+                ?? "";
+
+            // Tự động convert nếu là URL dạng postgresql:// hoặc postgres://
+            string connectionString;
+            if (rawConn.StartsWith("postgresql://") || rawConn.StartsWith("postgres://"))
+            {
+                var uri = new Uri(rawConn.Replace("postgresql://", "http://").Replace("postgres://", "http://"));
+                var userInfo = uri.UserInfo.Split(':');
+                var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+                var sslMode = query["sslmode"] ?? "require";
+                connectionString = $"Host={uri.Host};Port={(uri.Port > 0 ? uri.Port : 5432)};Database={uri.AbsolutePath.TrimStart('/')};Username={userInfo[0]};Password={Uri.UnescapeDataString(userInfo.Length > 1 ? userInfo[1] : "")};SSL Mode={sslMode};Trust Server Certificate=true";
+            }
+            else
+            {
+                connectionString = rawConn;
+            }
+
             builder.Services.AddDbContext<AppDbContext>(options =>
-                options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+                options.UseNpgsql(connectionString));
+
 
             builder.Services.AddScoped<IR2Service, R2Service>();
 
