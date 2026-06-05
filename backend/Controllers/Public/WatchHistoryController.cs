@@ -9,14 +9,34 @@ namespace ProjectTviEn.Controllers.Public
     public class WatchHistoryController : ControllerBase
     {
         private readonly AppDbContext _db;
+        private readonly ProjectTviEn.Services.IR2Service _r2Service;
 
-        public WatchHistoryController(AppDbContext db) { _db = db; }
+        public WatchHistoryController(AppDbContext db, ProjectTviEn.Services.IR2Service r2Service) 
+        { 
+            _db = db; 
+            _r2Service = r2Service;
+        }
+
+        private string? CleanUrl(string? url)
+        {
+            if (string.IsNullOrEmpty(url)) return null;
+            if (!url.StartsWith("http")) return url.TrimStart('/');
+            var bucketToken = "tvien-media-raw/";
+            int idx = url.IndexOf(bucketToken);
+            if (idx != -1)
+            {
+                var path = url.Substring(idx + bucketToken.Length);
+                int queryIdx = path.IndexOf('?');
+                return queryIdx != -1 ? path.Substring(0, queryIdx) : path;
+            }
+            return url;
+        }
 
         // GET: api/public/watchhistory?userId=xxx
         [HttpGet]
         public async Task<IActionResult> GetHistory([FromQuery] string userId)
         {
-            var history = await _db.WatchHistories
+            var rawHistory = await _db.WatchHistories
                 .Where(h => h.UserId == userId)
                 .Include(h => h.Movie)
                 .Include(h => h.Episode)
@@ -24,10 +44,25 @@ namespace ProjectTviEn.Controllers.Public
                 .Take(50)
                 .Select(h => new {
                     h.HistoryId, h.ProgressSeconds, h.IsCompleted, h.WatchedAt,
-                    Movie   = h.Movie == null   ? null : new { h.Movie.Id, h.Movie.Title, h.Movie.PosterUrl },
+                    MovieId = h.Movie != null ? h.Movie.Id : 0,
+                    MovieTitle = h.Movie != null ? h.Movie.Title : "",
+                    MovieSlug = h.Movie != null ? h.Movie.Slug : "",
+                    MoviePosterUrl = h.Movie != null ? h.Movie.PosterUrl : "",
                     Episode = h.Episode == null ? null : new { h.Episode.EpisodeId, h.Episode.Title }
                 })
                 .ToListAsync();
+
+            var history = rawHistory.Select(h => new {
+                h.HistoryId, h.ProgressSeconds, h.IsCompleted, h.WatchedAt,
+                Movie = h.MovieId != 0 ? new { 
+                    Id = h.MovieId, 
+                    Title = h.MovieTitle, 
+                    Slug = h.MovieSlug,
+                    PosterUrl = !string.IsNullOrEmpty(h.MoviePosterUrl) ? _r2Service.GeneratePresignedDownloadUrl(CleanUrl(h.MoviePosterUrl)) : null 
+                } : null,
+                h.Episode
+            }).ToList();
+
             return Ok(history);
         }
 

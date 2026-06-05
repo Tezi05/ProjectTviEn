@@ -158,6 +158,38 @@ export default function CinemaApp() {
   
   const { user, logout } = useAuth();
   const [authModalOpen, setAuthModalOpen] = useState(false);
+
+  const [history, setHistory] = useState<any[]>([]);
+  const [watchlist, setWatchlist] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (user && user.userId) {
+      fetch(`${BASE_API_URL.replace(/\/$/, '')}/public/watchhistory?userId=${user.userId}`)
+        .then(res => {
+          if (!res.ok) throw new Error("Failed to fetch history");
+          return res.json();
+        })
+        .then(data => setHistory(Array.isArray(data) ? data : []))
+        .catch(err => {
+          console.error(err);
+          setHistory([]);
+        });
+        
+      fetch(`${BASE_API_URL.replace(/\/$/, '')}/public/watchlist?userId=${user.userId}`)
+        .then(res => {
+          if (!res.ok) throw new Error("Failed to fetch watchlist");
+          return res.json();
+        })
+        .then(data => setWatchlist(Array.isArray(data) ? data : []))
+        .catch(err => {
+          console.error(err);
+          setWatchlist([]);
+        });
+    } else {
+      setHistory([]);
+      setWatchlist([]);
+    }
+  }, [user]);
  
   // Sync Escape key to close Search Overlay
   useEffect(() => {
@@ -251,42 +283,107 @@ export default function CinemaApp() {
           onLogoutClick={logout}
         />
         
-        {/* Hero */}
-        <header className="relative w-full h-[90vh] min-h-[700px] flex items-end overflow-hidden">
-          <img src={featured?.posterUrl || 'https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=2000'} alt="" className="absolute inset-0 w-full h-full object-cover scale-105 z-0" />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#131313] via-[#131313]/60 to-transparent z-10" />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#131313]/80 via-transparent to-transparent z-10" />
-          <div className="relative z-20 w-full max-w-[1600px] mx-auto px-8 md:px-16 pb-24">
-            <h1 className="text-6xl md:text-8xl font-serif font-bold text-white mb-6 max-w-4xl tracking-tight leading-[0.9]">
-              {featured?.title || 'The Echoes of Silence'}
-            </h1>
-            <p className="text-white/60 text-lg max-w-2xl mb-10 font-light leading-relaxed">
-              {featured?.description || 'In a world where sound is forbidden, one rebel discovers a frequency that could shatter the fragile peace of the utopia.'}
-            </p>
-            <button className="bg-white text-black px-10 py-4 rounded-sm font-semibold text-[11px] uppercase tracking-[0.2em] hover:bg-white/80 transition-all flex items-center gap-3">
-              <Play className="w-5 h-5 fill-current" /> Play Now
-            </button>
-          </div>
-        </header>
- 
-        <main className="w-full max-w-[1600px] mx-auto px-8 md:px-16 pt-24">
-          <section className="mb-24">
-            <h2 className="text-[42px] font-serif font-bold text-white mb-12 tracking-tight">New & Noteworthy</h2>
-            <div className="flex gap-6 overflow-x-auto pb-10 hide-scrollbar">
-              {loading ? [1,2,3,4,5].map(i => <div key={i} className="w-[240px] aspect-[2/3] bg-white/5 animate-pulse rounded-sm" />) :
-                filteredMovies.map(m => <HoverPlayer key={m.id} {...m} />)
-              }
-            </div>
-          </section>
- 
-          <section className="mb-24">
-            <h2 className="text-[42px] font-serif font-bold text-white mb-12 tracking-tight">Continue Watching</h2>
-            <div className="flex gap-6 overflow-x-auto pb-10 hide-scrollbar">
-              <ContinueCard title="Echoes of Silence" progress={75} imgUrl="https://lh3.googleusercontent.com/aida-public/AB6AXuD63HDODUKXchyc1i-5yUlOP408n4WiNeQsrSApMuE-DpBczngjwylsEruWvwQXx7BQkm-QH8spSo1V_1yy-aydc5wspZhxC1P9_oCxTr9fdZGRnAtqI4IDyYAaKFzNXz72yJC5UyKrLdWQlaJKnOxHTLi82wMLGyfxKdfUvJ-BOYIKWrh6BqLqiOJ08k6kINDV4RhVCQKj2oezCl1FJ3HCzTN9AwoTVeo_r3gqPdDp9I5aWixDT2qw4cEiJaRU07syVJOfSgKN2hUE" />
-              <ContinueCard title="Dune: Part Two" progress={30} imgUrl="https://lh3.googleusercontent.com/aida-public/AB6AXuA9qY04G39OpNTNBchQLE0JT09lrnFe0ZuURnboSIQehu_1MKMJfXX8fcnTcdZbsroKifq2-gUiROtrlfICIJ-lFfdeIkZCSH4Xo548OACnWOyT6KAqoFNgRjCtcZ5N3SFXi3niNq7fuOq54kCkf3VfHZHzzwLC_OZ7Q5y29l3VYSL9ZbYcTACvswGIDdtdPLirpkA5VvVbus9viQ5czfHmiiRUl9kDr-wV2Nk_hnBns7ShZP6OdtLHZJamUsraJchRJ-4VMKBEFKuB" />
-            </div>
-          </section>
-        </main>
+        {activeTab === 'library' ? (
+          <main className="w-full max-w-[1600px] mx-auto px-8 md:px-16 pt-32 pb-24 min-h-[70vh]">
+            {!user ? (
+              <div className="text-center mt-32">
+                <h2 className="text-4xl font-serif text-white mb-6">Your Library</h2>
+                <p className="text-white/40 mb-10 text-lg">Sign in to sync your watch history and saved movies.</p>
+                <button onClick={() => setAuthModalOpen(true)} className="bg-white text-black px-10 py-4 rounded-sm font-bold text-xs uppercase tracking-widest hover:bg-white/90">Sign In</button>
+              </div>
+            ) : (
+              <>
+                <section className="mb-24">
+                  <h2 className="text-[42px] font-serif font-bold text-white mb-12 tracking-tight">My Watchlist</h2>
+                  {watchlist.length === 0 ? (
+                    <div className="py-20 text-center border border-dashed border-white/5 rounded-sm bg-white/[0.01]">
+                      <p className="text-white/30 text-lg font-light tracking-wide">Danh sách trống. Hãy thêm phim vào danh sách xem sau.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-8">
+                      {watchlist.map(w => (
+                        <div key={w.watchlistId} className="transform hover:scale-105 transition-transform duration-300">
+                          <HoverPlayer id={w.movie.id} slug={w.movie.slug} title={w.movie.title} posterUrl={w.movie.posterUrl} />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </section>
+                
+                <section className="mb-24">
+                  <h2 className="text-[42px] font-serif font-bold text-white mb-12 tracking-tight">Watch History</h2>
+                  {history.length === 0 ? (
+                    <div className="py-20 text-center border border-dashed border-white/5 rounded-sm bg-white/[0.01]">
+                      <p className="text-white/30 text-lg font-light tracking-wide">Bạn chưa xem bộ phim nào.</p>
+                    </div>
+                  ) : (
+                    <div className="flex gap-6 overflow-x-auto pb-10 hide-scrollbar">
+                      {history.map(h => (
+                        <ContinueCard 
+                          key={h.historyId} 
+                          title={h.movie.title} 
+                          progress={h.isCompleted ? 100 : Math.min(100, (h.progressSeconds / 7200) * 100)}
+                          imgUrl={h.movie.posterUrl} 
+                          movieId={h.movie.id} 
+                          slug={h.movie.slug}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </section>
+              </>
+            )}
+          </main>
+        ) : (
+          <>
+            {/* Hero */}
+            <header className="relative w-full h-[90vh] min-h-[700px] flex items-end overflow-hidden">
+              <img src={featured?.posterUrl || 'https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=2000'} alt="" className="absolute inset-0 w-full h-full object-cover scale-105 z-0" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#131313] via-[#131313]/60 to-transparent z-10" />
+              <div className="absolute inset-0 bg-gradient-to-r from-[#131313]/80 via-transparent to-transparent z-10" />
+              <div className="relative z-20 w-full max-w-[1600px] mx-auto px-8 md:px-16 pb-24">
+                <h1 className="text-6xl md:text-8xl font-serif font-bold text-white mb-6 max-w-4xl tracking-tight leading-[0.9]">
+                  {featured?.title || 'The Echoes of Silence'}
+                </h1>
+                <p className="text-white/60 text-lg max-w-2xl mb-10 font-light leading-relaxed">
+                  {featured?.description || 'In a world where sound is forbidden, one rebel discovers a frequency that could shatter the fragile peace of the utopia.'}
+                </p>
+                <button onClick={() => featured && router.push(`/watch/${featured.slug || featured.id}`)} className="bg-white text-black px-10 py-4 rounded-sm font-semibold text-[11px] uppercase tracking-[0.2em] hover:bg-white/80 transition-all flex items-center gap-3">
+                  <Play className="w-5 h-5 fill-current" /> Play Now
+                </button>
+              </div>
+            </header>
+    
+            <main className="w-full max-w-[1600px] mx-auto px-8 md:px-16 pt-24">
+              {history.length > 0 && (
+                <section className="mb-24">
+                  <h2 className="text-[42px] font-serif font-bold text-white mb-12 tracking-tight">Continue Watching</h2>
+                  <div className="flex gap-6 overflow-x-auto pb-10 hide-scrollbar">
+                    {history.map(h => (
+                      <ContinueCard 
+                        key={h.historyId} 
+                        title={h.movie.title} 
+                        progress={h.isCompleted ? 100 : Math.min(100, (h.progressSeconds / 7200) * 100)}
+                        imgUrl={h.movie.posterUrl} 
+                        movieId={h.movie.id} 
+                        slug={h.movie.slug}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              <section className="mb-24">
+                <h2 className="text-[42px] font-serif font-bold text-white mb-12 tracking-tight">New & Noteworthy</h2>
+                <div className="flex gap-6 overflow-x-auto pb-10 hide-scrollbar">
+                  {loading ? [1,2,3,4,5].map(i => <div key={i} className="w-[240px] aspect-[2/3] bg-white/5 animate-pulse rounded-sm" />) :
+                    filteredMovies.map(m => <HoverPlayer key={m.id} {...m} />)
+                  }
+                </div>
+              </section>
+            </main>
+          </>
+        )}
  
         <footer className="w-full py-24 bg-[#0A0A0A] mt-24 border-t border-white/5 text-center">
           <p className="text-[10px] tracking-[0.4em] uppercase text-white/10">© 2026 TVIEN. THE VOID IS CALLING.</p>

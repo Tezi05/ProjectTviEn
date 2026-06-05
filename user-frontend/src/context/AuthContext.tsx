@@ -26,9 +26,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const storedUser = localStorage.getItem('tvien_user');
     if (storedUser) {
       try {
-        setUser(JSON.parse(storedUser));
+        const parsedUser = JSON.parse(storedUser);
+        if (parsedUser && parsedUser.userId) {
+          setUser(parsedUser);
+        } else {
+          // Xóa session cũ (do phiên bản code cũ không lưu userId)
+          localStorage.removeItem('tvien_user');
+        }
       } catch (e) {
         console.error("Failed to parse stored user", e);
+        localStorage.removeItem('tvien_user');
       }
     }
     setIsLoading(false);

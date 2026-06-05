@@ -13,13 +13,13 @@ namespace ProjectTviEn.Models
         public string UserId { get; set; } = string.Empty;
 
         [ForeignKey("UserId")]
-        public User User { get; set; } = null!;
+        public User? User { get; set; }
 
         [Required]
         public int MovieId { get; set; }
 
         [ForeignKey("MovieId")]
-        public Movie Movie { get; set; } = null!;
+        public Movie? Movie { get; set; }
 
         [Range(1, 10)]
         public int Rating { get; set; } // Điểm 1-10
