@@ -1,0 +1,18 @@
+{
+	"ulid": "01KTBQ25V164FK0172TBAEP0YP",
+	"minTime": 1780637662173,
+	"maxTime": 1780639200000,
+	"stats": {
+		"numSamples": 380,
+		"numFloatSamples": 380,
+		"numSeries": 10,
+		"numChunks": 10
+	},
+	"compaction": {
+		"level": 1,
+		"sources": [
+			"01KTBQ25V164FK0172TBAEP0YP"
+		]
+	},
+	"version": 1
+}

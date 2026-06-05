@@ -67,7 +67,7 @@ export default function EpisodeForm({ onSaved, onClose, episode }: { onSaved: ()
                 <AutocompleteInput 
                   label="Thuộc phim (Movie) *" 
                   placeholder="Gõ tên phim..."
-                  searchUrl={kw => `${API_BASE}/admin/Movies/search?keyword=${encodeURIComponent(kw)}`}
+                  searchUrl={kw => `${API_BASE}/admin/Movies/search?keyword=${encodeURIComponent(kw)}&type=TvSeries`}
                   mapResult={m => ({ id: m.movieId || m.id, label: m.title, avatar: m.posterUrl, sub: m.releaseYear })}
                   selected={selectedMovie}
                   onChange={setSelectedMovie}

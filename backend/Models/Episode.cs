@@ -11,12 +11,17 @@ namespace ProjectTviEn.Models
         [Key]
         public Guid EpisodeId { get; set; } = Guid.NewGuid();
 
-        [Required]
-        public int MovieId { get; set; }
+        public int? MovieId { get; set; }
 
         [JsonIgnore]
         [ForeignKey("MovieId")]
-        public Movie Movie { get; set; } = null!;
+        public virtual Movie? Movie { get; set; }
+
+        public Guid? SeasonId { get; set; }
+
+        [JsonIgnore]
+        [ForeignKey("SeasonId")]
+        public virtual Season? Season { get; set; }
 
         public int SeasonNumber { get; set; } = 1;
 

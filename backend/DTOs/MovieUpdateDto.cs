@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using ProjectTviEn.Models;
 
 namespace ProjectTviEn.DTOs
 {
@@ -12,6 +13,7 @@ namespace ProjectTviEn.DTOs
         public int? Duration { get; set; }
         public string? AgeRating { get; set; }
         public int Status { get; set; }
+        public MovieType Type { get; set; } = MovieType.SingleMovie; // Phân loại: SingleMovie=1, TvSeries=2
         public string? PosterUrl { get; set; }
         public string? BackdropUrl { get; set; }
         public string? TrailerUrl { get; set; }

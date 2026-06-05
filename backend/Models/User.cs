@@ -10,10 +10,12 @@ namespace ProjectTviEn.Models
         [MaxLength(50)]
         public string UserId { get; set; } = Guid.NewGuid().ToString("N");
 
-        // Google OAuth — Không lưu password
-        [Required]
+        // Google OAuth — Có thể null nếu đăng ký bằng Email/Pass
         [MaxLength(255)]
-        public string GoogleId { get; set; } = string.Empty; // "sub" từ Google JWT
+        public string? GoogleId { get; set; } // "sub" từ Google JWT
+
+        [MaxLength(255)]
+        public string? PasswordHash { get; set; }
 
         [Required]
         [MaxLength(255)]

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { API_BASE, CDN_BASE } from '../../config';
 import { AddModal, Field, inp, sel, tex, lbl, toSlug } from '../../components/SharedUI';
 
@@ -14,6 +14,19 @@ export default function MovieEditor({ movie, onCancel, onSaved }: any) {
   const [pendingPoster, setPendingPoster] = useState<File | null>(null);
   const [pendingBackdrop, setPendingBackdrop] = useState<File | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  const [isDurationOpen, setIsDurationOpen] = useState(false);
+  const durationDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (durationDropdownRef.current && !durationDropdownRef.current.contains(event.target as Node)) {
+        setIsDurationOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     const fetchExtras = async () => {
@@ -183,15 +196,70 @@ export default function MovieEditor({ movie, onCancel, onSaved }: any) {
                   <label className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Năm phát hành</label>
                   <input type="number" className="w-full bg-black border border-neutral-800 h-14 px-6 text-base focus:border-white outline-none transition-all font-medium text-white" value={formData.releaseYear || 0} onChange={e => setFormData({...formData, releaseYear: parseInt(e.target.value)})} />
                 </div>
-                <div className="space-y-3">
+                <div className="space-y-3 relative" ref={durationDropdownRef}>
                   <label className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Thời lượng (Phút)</label>
-                  <input type="number" className="w-full bg-black border border-neutral-800 h-14 px-6 text-base focus:border-white outline-none transition-all font-medium text-white" value={formData.duration || 0} onChange={e => setFormData({...formData, duration: parseInt(e.target.value)})} />
+                  <input 
+                    type="number" 
+                    placeholder={formData.type === 1 ? "Hệ thống tự nhận từ Video" : "Thời lượng"}
+                    readOnly={formData.type === 1}
+                    className={`w-full bg-black border border-neutral-800 h-14 px-6 text-base outline-none transition-all font-medium ${formData.type === 1 ? 'text-neutral-600 cursor-not-allowed bg-neutral-950/20 border-neutral-900' : 'text-white focus:border-white placeholder-white/50'}`}
+                    value={formData.type === 1 ? '' : (formData.duration || '')} 
+                    onChange={e => setFormData({...formData, duration: parseInt(e.target.value) || 0})}
+                    onFocus={() => { if (formData.type !== 1) setIsDurationOpen(true); }}
+                  />
+                  {isDurationOpen && (
+                    <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-neutral-950 border border-neutral-800 rounded-sm shadow-[0_15px_50px_rgba(0,0,0,0.9)] overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
+                      {[45, 60, 90, 120, 150, 180].map(mins => (
+                        <button
+                          key={mins}
+                          type="button"
+                          onClick={() => {
+                            setFormData({...formData, duration: mins});
+                            setIsDurationOpen(false);
+                          }}
+                          className={`w-full text-left px-6 py-3.5 text-xs border-b border-neutral-900/60 last:border-0 transition-colors ${formData.duration === mins ? 'bg-neutral-900 text-white font-black' : 'text-neutral-400 hover:bg-neutral-900/40 hover:text-white'}`}
+                        >
+                          {mins}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-3">
                   <label className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Phân loại tuổi</label>
                   <select className="w-full bg-black border border-neutral-800 h-14 px-6 text-base focus:border-white outline-none transition-all font-medium text-white" value={formData.ageRating || ''} onChange={e => setFormData({...formData, ageRating: e.target.value})}>
                     <option value="P">P (All)</option><option value="13+">13+</option><option value="C16">C16</option><option value="C18">C18</option>
                   </select>
+                </div>
+              </div>
+
+              {/* LOẠI TÁC PHẨM — Tách riêng hàng để nổi bật */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-10 p-6 bg-black/40 border border-neutral-900 rounded-sm">
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Loại tác phẩm *</label>
+                  <div className="flex gap-3">
+                    {[
+                      { value: 1, label: '🎬 Phim Lẻ', sub: 'SingleMovie — Video gắn trực tiếp' },
+                      { value: 2, label: '📺 Phim Bộ', sub: 'TvSeries — Quản lý qua Mùa & Tập' },
+                    ].map(opt => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setFormData({...formData, type: opt.value})}
+                        className={`flex-1 p-4 border rounded-sm text-left transition-all ${(formData.type ?? 1) === opt.value ? 'bg-white text-black border-white' : 'bg-transparent border-neutral-800 text-neutral-500 hover:border-neutral-600 hover:text-neutral-300'}`}
+                      >
+                        <div className="text-sm font-black">{opt.label}</div>
+                        <div className="text-[9px] opacity-60 mt-1 font-bold uppercase tracking-wide">{opt.sub}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-3 flex flex-col justify-center">
+                  <div className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-sm inline-block ${(formData.type ?? 1) === 2 ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-green-500/10 text-green-400 border border-green-500/20'}`}>
+                    {(formData.type ?? 1) === 2
+                      ? '📺 Series: Bạn cần tạo Mùa → Tập → Upload Video'
+                      : '🎬 Movie: Upload Video trực tiếp vào phim này'}
+                  </div>
                 </div>
               </div>
               <div className="space-y-3">

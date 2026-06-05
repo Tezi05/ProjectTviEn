@@ -20,23 +20,25 @@ import MediaAssetsTable from './tables/MediaAssets';
 import StreamsTable from './tables/Streams';
 import WatchHistoriesTable from './tables/WatchHistories';
 import BaseTable from './tables/BaseTable';
+import SeasonsTable from './tables/Seasons';
 
 const ALL_TABLES = [
-  { id: 'Movies', label: '🎬 Movies', icon: 'movie', group: 'CONTENT' },
+  { id: 'Movies', label: '🎬 Titles', icon: 'movie', group: 'CONTENT' },
+  { id: 'Seasons', label: '📁 Seasons', icon: 'folder_special', group: 'CONTENT' },
   { id: 'Genres', label: '🏷️ Genres', icon: 'category', group: 'CONTENT' },
   { id: 'Persons', label: '⭐ People', icon: 'group', group: 'CONTENT' },
   { id: 'Episodes', label: '📺 Episodes', icon: 'subscriptions', group: 'CONTENT' },
   { id: 'Videos', label: '📹 Videos (HLS)', icon: 'account_tree', group: 'SYSTEM' },
   { id: 'IngestJobs', label: '⚙️ Ingest Jobs', icon: 'terminal', group: 'SYSTEM' },
   { id: 'MediaAssets', label: '📦 Media Assets', icon: 'inventory_2', group: 'SYSTEM' },
-  { id: 'Streams', label: '📡 Streams', icon: 'settings_input_antenna', group: 'SYSTEM' },
+  { id: 'Streams', label: '📡 Delivery Nodes', icon: 'settings_input_antenna', group: 'SYSTEM' },
   { id: 'Users', label: '👥 Users', icon: 'person', group: 'USER DATA' },
   { id: 'Reviews', label: '💬 Reviews', icon: 'rate_review', group: 'USER DATA' },
   { id: 'WatchHistories', label: '🕒 History', icon: 'history', group: 'USER DATA' },
   { id: 'Watchlists', label: '🔖 Watchlists', icon: 'bookmarks', group: 'USER DATA' },
   { id: 'Roles', label: '🛡️ Roles', icon: 'verified_user', group: 'USER DATA' },
-  { id: 'MovieGenres', label: '🔗 Movie-Genre', icon: 'link', group: 'RELATIONS' },
-  { id: 'MovieCrews', label: '🔗 Movie-Crew', icon: 'link', group: 'RELATIONS' },
+  { id: 'MovieGenres', label: '🔗 Title-Genre', icon: 'link', group: 'RELATIONS' },
+  { id: 'MovieCrews', label: '🔗 Title-Crew', icon: 'link', group: 'RELATIONS' },
 ];
 
 export default function AdminDashboard() {
@@ -76,6 +78,7 @@ export default function AdminDashboard() {
 
     switch (activeTable) {
       case 'Movies': return <MoviesTable {...props} />;
+      case 'Seasons': return <SeasonsTable />;
       case 'Genres': return <GenresTable {...props} />;
       case 'Persons': return <PersonsTable {...props} />;
       case 'Episodes': return <EpisodesTable {...props} />;

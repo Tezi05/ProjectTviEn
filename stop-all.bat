@@ -13,6 +13,7 @@ echo [2/5] Dang tat tat ca tien trinh Dotnet va Node...
 taskkill /F /IM dotnet.exe /T >nul 2>&1
 taskkill /F /IM node.exe /T >nul 2>&1
 taskkill /F /IM VBCSCompiler.exe /T >nul 2>&1
+taskkill /FI "WINDOWTITLE eq TviEn*" /T /F >nul 2>&1
 
 echo [3/5] Dang dung Docker (Postgres, Redis, Prometheus)...
 docker compose down >nul 2>&1

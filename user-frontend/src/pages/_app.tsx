@@ -3,6 +3,8 @@ import Head from 'next/head'
 import { Inter, Noto_Serif } from 'next/font/google'
 import '../styles/globals.css'
 import '../styles/admin.scss'
+import { AuthProvider } from '@/context/AuthContext'
+import { GoogleOAuthProvider } from '@react-oauth/google'
 
 // Khởi tạo Font chuẩn theo cơ chế tối ưu của Next.js
 const inter = Inter({ 
@@ -32,7 +34,11 @@ export default function App({ Component, pageProps }: AppProps) {
         Sử dụng CSS Variable để Tailwind có thể nhận diện.
       */}
       <div className={`${inter.variable} ${notoSerif.variable} font-sans min-h-full flex flex-col antialiased`}>
-        <Component {...pageProps} />
+        <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "MOCK_CLIENT_ID_WAITING_FOR_USER"}>
+          <AuthProvider>
+            <Component {...pageProps} />
+          </AuthProvider>
+        </GoogleOAuthProvider>
       </div>
     </>
   )

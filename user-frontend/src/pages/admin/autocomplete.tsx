@@ -5,6 +5,8 @@ export interface ACOption {
   label: string;        // tên hiển thị
   sub?: string;         // dòng phụ (quốc tịch, năm sinh...)
   avatar?: string;      // url ảnh
+  isSeries?: boolean;
+  episodeCount?: number;
 }
 
 interface Props {

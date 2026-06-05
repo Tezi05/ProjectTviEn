@@ -1,7 +1,9 @@
 import React, { useEffect, useState, useRef, memo } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
-import { Search, User, Play, X, PlayCircle } from 'lucide-react';
+import { Search, User as UserIcon, Play, X, PlayCircle, LogOut } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import AuthModal from '@/components/auth/AuthModal';
  
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface Movie {
@@ -45,7 +47,7 @@ function normalizeMovie(d: any): Movie {
 }
  
 // ─── Navbar (Optimized) ──────────────────────────────────────────────────────
-const Navbar = memo(({ activeTab, onTabChange, onSearchOpen }: any) => (
+const Navbar = memo(({ activeTab, onTabChange, onSearchOpen, user, onLoginClick, onLogoutClick }: any) => (
   <nav className="fixed top-0 w-full z-50 bg-black/20 backdrop-blur-2xl border-b border-white/5">
     <div className="flex justify-between items-center px-8 md:px-16 h-24 max-w-[1600px] mx-auto">
       <div className="text-[28px] font-bold tracking-tighter text-white">TviEn</div>
@@ -57,7 +59,25 @@ const Navbar = memo(({ activeTab, onTabChange, onSearchOpen }: any) => (
       </div>
       <div className="flex items-center gap-8">
         <button onClick={onSearchOpen} className="text-white/60 hover:text-white transition"><Search className="w-5 h-5" /></button>
-        <button className="text-white/60 hover:text-white transition"><User className="w-5 h-5" /></button>
+        {user ? (
+          <div className="flex items-center gap-4 group relative">
+            {user.avatarUrl ? (
+              <img src={user.avatarUrl} alt="Avatar" className="w-8 h-8 rounded-full border border-white/10" />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center border border-white/10">
+                <UserIcon className="w-4 h-4 text-white/60" />
+              </div>
+            )}
+            <div className="hidden group-hover:flex absolute top-full right-0 mt-2 bg-[#131313] border border-white/10 rounded-sm p-2 flex-col gap-2 shadow-2xl min-w-[150px] before:absolute before:content-[''] before:-top-2 before:left-0 before:right-0 before:h-2">
+              <div className="px-3 py-2 text-white text-xs border-b border-white/10">{user.displayName}</div>
+              <button onClick={onLogoutClick} className="flex items-center gap-2 px-3 py-2 text-white/60 hover:text-white hover:bg-white/5 transition text-xs text-left w-full rounded-sm">
+                <LogOut className="w-4 h-4" /> Đăng xuất
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button onClick={onLoginClick} className="text-white/60 hover:text-white transition text-xs font-semibold uppercase tracking-widest bg-white/5 px-4 py-2 rounded-sm border border-white/10 hover:bg-white/10">Sign In</button>
+        )}
       </div>
     </div>
   </nav>
@@ -135,6 +155,9 @@ export default function CinemaApp() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('cinema');
+  
+  const { user, logout } = useAuth();
+  const [authModalOpen, setAuthModalOpen] = useState(false);
  
   // Sync Escape key to close Search Overlay
   useEffect(() => {
@@ -219,7 +242,14 @@ export default function CinemaApp() {
       </Head>
  
       <div className="bg-[#131313] min-h-screen font-sans selection:bg-white selection:text-black antialiased">
-        <Navbar activeTab={activeTab} onTabChange={handleTabChange} onSearchOpen={() => setSearchOpen(true)} />
+        <Navbar 
+          activeTab={activeTab} 
+          onTabChange={handleTabChange} 
+          onSearchOpen={() => setSearchOpen(true)} 
+          user={user}
+          onLoginClick={() => setAuthModalOpen(true)}
+          onLogoutClick={logout}
+        />
         
         {/* Hero */}
         <header className="relative w-full h-[90vh] min-h-[700px] flex items-end overflow-hidden">
@@ -336,6 +366,8 @@ export default function CinemaApp() {
             </div>
           </div>
         )}
+
+        <AuthModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} />
       </div>
     </>
   );

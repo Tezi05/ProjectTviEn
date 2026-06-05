@@ -46,8 +46,11 @@ namespace ProjectTviEn.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
-                    b.Property<int>("MovieId")
+                    b.Property<int?>("MovieId")
                         .HasColumnType("integer");
+
+                    b.Property<Guid?>("SeasonId")
+                        .HasColumnType("uuid");
 
                     b.Property<int>("SeasonNumber")
                         .HasColumnType("integer");
@@ -65,6 +68,8 @@ namespace ProjectTviEn.Migrations
                     b.HasKey("EpisodeId");
 
                     b.HasIndex("MovieId");
+
+                    b.HasIndex("SeasonId");
 
                     b.ToTable("Episodes");
                 });
@@ -246,6 +251,9 @@ namespace ProjectTviEn.Migrations
                     b.Property<string>("TrailerUrl")
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -463,6 +471,50 @@ namespace ProjectTviEn.Migrations
                         });
                 });
 
+            modelBuilder.Entity("ProjectTviEn.Models.Season", b =>
+                {
+                    b.Property<Guid>("SeasonId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("MovieId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("PlotSynopsis")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PosterUrl")
+                        .HasColumnType("text");
+
+                    b.Property<int>("ReleaseYear")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SeasonNumber")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("SeasonId");
+
+                    b.HasIndex("MovieId");
+
+                    b.ToTable("Seasons");
+                });
+
             modelBuilder.Entity("ProjectTviEn.Models.StreamInfo", b =>
                 {
                     b.Property<int>("MovieId")
@@ -513,7 +565,6 @@ namespace ProjectTviEn.Migrations
                         .HasColumnType("character varying(255)");
 
                     b.Property<string>("GoogleId")
-                        .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
 
@@ -522,6 +573,10 @@ namespace ProjectTviEn.Migrations
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
+
+                    b.Property<string>("PasswordHash")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
 
                     b.Property<int>("RoleId")
                         .HasColumnType("integer");
@@ -667,11 +722,16 @@ namespace ProjectTviEn.Migrations
                 {
                     b.HasOne("ProjectTviEn.Models.Movie", "Movie")
                         .WithMany("Episodes")
-                        .HasForeignKey("MovieId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("MovieId");
+
+                    b.HasOne("ProjectTviEn.Models.Season", "Season")
+                        .WithMany("Episodes")
+                        .HasForeignKey("SeasonId")
+                        .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("Movie");
+
+                    b.Navigation("Season");
                 });
 
             modelBuilder.Entity("ProjectTviEn.Models.IngestJob", b =>
@@ -759,6 +819,17 @@ namespace ProjectTviEn.Migrations
                     b.Navigation("Movie");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("ProjectTviEn.Models.Season", b =>
+                {
+                    b.HasOne("ProjectTviEn.Models.Movie", "Movie")
+                        .WithMany("Seasons")
+                        .HasForeignKey("MovieId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Movie");
                 });
 
             modelBuilder.Entity("ProjectTviEn.Models.StreamInfo", b =>
@@ -866,6 +937,8 @@ namespace ProjectTviEn.Migrations
 
                     b.Navigation("Reviews");
 
+                    b.Navigation("Seasons");
+
                     b.Navigation("Stream");
 
                     b.Navigation("Videos");
@@ -886,6 +959,11 @@ namespace ProjectTviEn.Migrations
             modelBuilder.Entity("ProjectTviEn.Models.RoleInfo", b =>
                 {
                     b.Navigation("MovieCrews");
+                });
+
+            modelBuilder.Entity("ProjectTviEn.Models.Season", b =>
+                {
+                    b.Navigation("Episodes");
                 });
 
             modelBuilder.Entity("ProjectTviEn.Models.User", b =>

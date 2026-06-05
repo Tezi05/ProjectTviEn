@@ -53,17 +53,49 @@ namespace ProjectTviEn.Controllers.Public
                 } catch { return StatusCode(403, "Invalid or Expired Token"); }
             }
 
-            // 2. XÁC ĐỊNH R2 KEY DỰA TRÊN DATABASE (Hỗ trợ cả cũ và mới)
+            // 2. XÁC ĐỊNH R2 KEY DỰA TRÊN DATABASE
+            // Chiến lược: Series → Season1→Episode1→Video | Phim lẻ → Video gắn MovieId
             string r2Key = "";
             if (int.TryParse(movieId, out int movieIntId))
             {
-                var videoRecord = await _db.Videos
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(v => v.MovieId == movieIntId && !v.IsDeleted);
+                Video? videoRecord = null;
+
+                // Dùng movie.Type để phân biệt Series/SingleMovie — không cần query Seasons
+                var movie = await _db.Movies.AsNoTracking()
+                    .FirstOrDefaultAsync(m => m.Id == movieIntId && !m.IsDeleted);
+
+                if (movie?.Type == MovieType.TvSeries)
+                {
+                    // Series: bắt buộc đi Season 1 → Episode 1 → Video
+                    var firstEpisode = await _db.Seasons
+                        .Where(s => s.MovieId == movieIntId && !s.IsDeleted)
+                        .OrderBy(s => s.SeasonNumber)
+                        .SelectMany(s => s.Episodes)
+                        .Where(e => !e.IsDeleted)
+                        .OrderBy(e => e.EpisodeNumber)
+                        .FirstOrDefaultAsync();
+
+                    if (firstEpisode != null)
+                    {
+                        videoRecord = await _db.Videos
+                            .AsNoTracking()
+                            .Where(v => v.EpisodeId == firstEpisode.EpisodeId && !v.IsDeleted
+                                        && !string.IsNullOrEmpty(v.MasterPlaylistUrl))
+                            .FirstOrDefaultAsync();
+                    }
+                }
+                else
+                {
+                    // SingleMovie: lấy video gắn trực tiếp MovieId, không qua Episode
+                    videoRecord = await _db.Videos
+                        .AsNoTracking()
+                        .Where(v => v.MovieId == movieIntId && v.EpisodeId == null
+                                    && !v.IsDeleted && !string.IsNullOrEmpty(v.MasterPlaylistUrl))
+                        .FirstOrDefaultAsync();
+                }
 
                 if (videoRecord != null && !string.IsNullOrEmpty(videoRecord.MasterPlaylistUrl))
                 {
-                    // Lấy thư mục gốc từ MasterPlaylistUrl (ví dụ: "stream/movies/2/" hoặc "stream/2/")
                     var masterUrl = videoRecord.MasterPlaylistUrl;
                     var baseFolder = masterUrl.Substring(0, masterUrl.LastIndexOf('/') + 1);
                     r2Key = $"{baseFolder}{filePath}";

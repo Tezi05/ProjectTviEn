@@ -21,6 +21,7 @@ namespace ProjectTviEn.Models
         public DbSet<Genre> Genres { get; set; }
         public DbSet<MovieGenre> MovieGenres { get; set; }
         public DbSet<Episode> Episodes { get; set; }
+        public DbSet<Season> Seasons { get; set; }
         public DbSet<Video> Videos { get; set; }
 
         // --- Bảng người dùng ---
@@ -73,6 +74,19 @@ namespace ProjectTviEn.Models
                 new RoleInfo { Id = 2, Name = "Diễn viên" },
                 new RoleInfo { Id = 3, Name = "Biên kịch" }
             );
+
+            // Thiết lập Xóa dây chuyền (Cascade Delete) cho chuỗi liên kết 3 tầng
+            modelBuilder.Entity<Season>()
+                .HasOne(s => s.Movie)
+                .WithMany(m => m.Seasons)
+                .HasForeignKey(s => s.MovieId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Episode>()
+                .HasOne(e => e.Season)
+                .WithMany(s => s.Episodes)
+                .HasForeignKey(e => e.SeasonId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

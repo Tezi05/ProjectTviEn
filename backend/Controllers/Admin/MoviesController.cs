@@ -70,6 +70,56 @@ namespace ProjectTviEn.Controllers.Admin
             return Ok(movies);
         }
 
+        [HttpGet("search")]
+        public async Task<IActionResult> Search([FromQuery] string keyword = "", [FromQuery] int limit = 10, [FromQuery] string? type = null)
+        {
+            var q = _context.Movies.Where(m => !m.IsDeleted);
+            if (!string.IsNullOrWhiteSpace(keyword))
+            {
+                q = q.Where(m => m.Title.ToLower().Contains(keyword.ToLower()) ||
+                                 (m.OriginalTitle != null && m.OriginalTitle.ToLower().Contains(keyword.ToLower())));
+            }
+
+            if (!string.IsNullOrEmpty(type))
+            {
+                if (Enum.TryParse<MovieType>(type, true, out var mType))
+                {
+                    q = q.Where(m => m.Type == mType);
+                }
+            }
+
+            var moviesRaw = await q
+                .OrderByDescending(m => m.CreatedAt)
+                .Take(limit)
+                .Select(m => new {
+                    m.Id,
+                    MovieId = m.Id,
+                    m.Title,
+                    m.OriginalTitle,
+                    m.Slug,
+                    m.PosterUrl,
+                    m.ReleaseYear,
+                    m.Type,
+                    EpisodeCount = _context.Episodes.Count(e => e.MovieId == m.Id && !e.IsDeleted)
+                })
+                .ToListAsync();
+
+            var results = moviesRaw.Select(m => new {
+                m.Id,
+                m.MovieId,
+                m.Title,
+                m.OriginalTitle,
+                m.Slug,
+                PosterUrl = !string.IsNullOrEmpty(m.PosterUrl) ? _r2Service.GeneratePresignedDownloadUrl(CleanUrl(m.PosterUrl)) : null,
+                m.ReleaseYear,
+                m.EpisodeCount,
+                IsSeries = m.Type == MovieType.TvSeries,  // ✅ Frontend dùng để phân luồng
+                Type = m.Type.ToString()                   // ✅ Trả về string cho dễ đọc
+            }).ToList();
+
+            return Ok(results);
+        }
+
         [HttpGet("slug/{slug}/play")]
         public async Task<IActionResult> GetPlayUrlBySlug(string slug) {
             var movie = await _context.Movies.FirstOrDefaultAsync(m => m.Slug == slug && !m.IsDeleted);
@@ -194,6 +244,7 @@ namespace ProjectTviEn.Controllers.Admin
             movie.Duration = dto.Duration;
             movie.AgeRating = dto.AgeRating;
             movie.Status = dto.Status;
+            movie.Type = dto.Type;   // ✅ Lưu loại phìm
             movie.TrailerUrl = dto.TrailerUrl;
             movie.UpdatedAt = DateTime.UtcNow;
 

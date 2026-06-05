@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using ProjectTviEn.Models;
 using ProjectTviEn.Services;
 using StackExchange.Redis;
@@ -35,6 +36,22 @@ namespace ProjectTviEn.Controllers.Admin
             Guid? episodeGuid = null;
             if (!string.IsNullOrEmpty(request.EpisodeId) && Guid.TryParse(request.EpisodeId, out Guid eGuid))
                 episodeGuid = eGuid;
+
+            // ============================================================
+            // 🛡️ CHẶN UPLOAD VIDEO VÀO ROOT CỦA SERIES
+            // Dùng movie.Type thay vì query Seasons — chính xác và nhanh hơn.
+            // ============================================================
+            if (request.AssetType == "MainVideo" || request.AssetType == "Video luồng chính")
+            {
+                var movie = await _context.Movies.FindAsync(movieIntId);
+                if (movie != null && movie.Type == MovieType.TvSeries && episodeGuid == null)
+                {
+                    return BadRequest(
+                        "LỖI KIẾN TRÚC: Phim này là Series (TvSeries). " +
+                        "Bạn KHÔNG THỂ tải video trực tiếp vào gốc phim bộ. " +
+                        "Hãy vào quản lý 'Tập Phim' (Episodes) và chọn đúng Tập để tải video lên!");
+                }
+            }
 
 
             try

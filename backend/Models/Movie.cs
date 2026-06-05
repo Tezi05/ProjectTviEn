@@ -4,6 +4,16 @@ using System.ComponentModel.DataAnnotations;
 
 namespace ProjectTviEn.Models
 {
+    /// <summary>
+    /// Loại tác phẩm: Phìm lẻ hay Phìm bộ
+    /// Lưu dưới dạng int trong Database (1 = SingleMovie, 2 = TvSeries)
+    /// </summary>
+    public enum MovieType
+    {
+        SingleMovie = 1, // Phìm lẻ
+        TvSeries = 2     // Phìm bộ
+    }
+
     public class Movie : ISoftDelete
     {
         public bool IsDeleted { get; set; } = false;
@@ -40,6 +50,12 @@ namespace ProjectTviEn.Models
         [MaxLength(10)]
         public string? AgeRating { get; set; } // [C18], [13+]...
 
+        /// <summary>
+        /// Loại tác phẩm: SingleMovie (1) = Phìm lẻ | TvSeries (2) = Phìm bộ
+        /// Frontend dùng để phân luồng hiển thị; Backend dùng để validate upload
+        /// </summary>
+        public MovieType Type { get; set; } = MovieType.SingleMovie;
+
         public int ViewCount { get; set; } = 0;
 
         // --- Quản trị & Audit ---
@@ -54,6 +70,7 @@ namespace ProjectTviEn.Models
         public ICollection<MovieGenre> MovieGenres { get; set; } = new List<MovieGenre>();
         public ICollection<MovieCrew> MovieCrews { get; set; } = new List<MovieCrew>();
         public ICollection<Episode> Episodes { get; set; } = new List<Episode>();
+        public virtual ICollection<Season> Seasons { get; set; } = new List<Season>();
         public ICollection<Video> Videos { get; set; } = new List<Video>();
         public ICollection<Review> Reviews { get; set; } = new List<Review>();
         public ICollection<Watchlist> Watchlists { get; set; } = new List<Watchlist>();
