@@ -49,41 +49,105 @@ function normalizeMovie(d: any): Movie {
 }
  
 // ─── Navbar (Optimized) ──────────────────────────────────────────────────────
-const Navbar = memo(({ activeTab, onTabChange, onSearchOpen, user, onLoginClick, onLogoutClick }: any) => (
-  <nav className="fixed top-0 w-full z-50 bg-black/20 backdrop-blur-2xl border-b border-white/5">
-    <div className="flex justify-between items-center px-8 md:px-16 h-24 max-w-[1600px] mx-auto">
-      <div className="text-[28px] font-bold tracking-tighter text-white">TviEn</div>
-      <div className="hidden md:flex gap-12 text-[11px] tracking-[0.25em] uppercase font-medium text-white/40">
-        <button onClick={() => onTabChange('cinema')} className={`transition ${activeTab === 'cinema' ? 'text-white border-b border-white pb-1' : 'hover:text-white'}`}>Cinema</button>
-        <button onClick={() => onTabChange('series')} className={`transition ${activeTab === 'series' ? 'text-white border-b border-white pb-1' : 'hover:text-white'}`}>Series</button>
-        <button onClick={() => onTabChange('originals')} className={`transition ${activeTab === 'originals' ? 'text-white border-b border-white pb-1' : 'hover:text-white'}`}>Originals</button>
-        <button onClick={() => onTabChange('library')} className={`transition ${activeTab === 'library' ? 'text-white border-b border-white pb-1' : 'hover:text-white'}`}>Library</button>
-      </div>
-      <div className="flex items-center gap-8">
-        <button onClick={onSearchOpen} className="text-white/60 hover:text-white transition"><Search className="w-5 h-5" /></button>
-        {user ? (
-          <div className="flex items-center gap-4 group relative">
-            {user.avatarUrl ? (
-              <img src={user.avatarUrl} alt="Avatar" className="w-8 h-8 rounded-full border border-white/10" />
-            ) : (
-              <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center border border-white/10">
-                <UserIcon className="w-4 h-4 text-white/60" />
+const Navbar = memo(({ activeTab, onTabChange, user, onLoginClick, onLogoutClick, searchQuery, setSearchQuery, onSearchSubmit }: any) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isExpanded && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isExpanded]);
+
+  return (
+    <nav className="fixed top-0 w-full z-50 bg-black/20 backdrop-blur-2xl border-b border-white/5">
+      <div className="flex justify-between items-center px-8 md:px-16 h-24 max-w-[1600px] mx-auto">
+        <div className="text-[28px] font-bold tracking-tighter text-white">TviEn</div>
+        <div className="hidden md:flex gap-12 text-[11px] tracking-[0.25em] uppercase font-medium text-white/40">
+          <button onClick={() => onTabChange('cinema')} className={`transition ${activeTab === 'cinema' ? 'text-white border-b border-white pb-1' : 'hover:text-white'}`}>Cinema</button>
+          <button onClick={() => onTabChange('series')} className={`transition ${activeTab === 'series' ? 'text-white border-b border-white pb-1' : 'hover:text-white'}`}>Series</button>
+          <button onClick={() => onTabChange('originals')} className={`transition ${activeTab === 'originals' ? 'text-white border-b border-white pb-1' : 'hover:text-white'}`}>Originals</button>
+          <button onClick={() => onTabChange('library')} className={`transition ${activeTab === 'library' ? 'text-white border-b border-white pb-1' : 'hover:text-white'}`}>Library</button>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className={`relative flex items-center gap-1 transition-all duration-500 ease-in-out border-b ${isExpanded ? 'w-52 sm:w-72 border-white/60' : 'w-5 border-transparent'}`}>
+            <input 
+              ref={inputRef}
+              type="text" 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  if (searchQuery.trim() !== '') {
+                    onSearchSubmit(searchQuery);
+                  }
+                } else if (e.key === 'Escape') {
+                  setIsExpanded(false);
+                }
+              }}
+              placeholder="Tìm phim, diễn viên: abc..."
+              className={`bg-transparent outline-none text-white text-sm transition-all duration-500 ease-in-out ${isExpanded ? 'w-full opacity-100' : 'w-0 opacity-0'}`}
+              onBlur={() => { if (!searchQuery) setIsExpanded(false); }}
+            />
+            {/* Filter dropdown - chỉ hiện khi expanded */}
+            <div className={`relative flex-shrink-0 transition-all duration-300 ${isExpanded ? 'opacity-100 w-auto' : 'opacity-0 w-0 overflow-hidden'}`}>
+              <div className="relative group cursor-pointer">
+                <Filter className="w-4 h-4 text-white/40 hover:text-white/80 transition-colors" />
+                <select
+                  value=""
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      setSearchQuery((prev: string) => prev ? prev.trim() + ', ' + e.target.value : e.target.value);
+                      setTimeout(() => inputRef.current?.focus(), 50);
+                    }
+                  }}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                >
+                  <option value="" disabled>Lọc theo...</option>
+                  <option value="diễn viên: ">Diễn viên</option>
+                  <option value="đạo diễn: ">Đạo diễn</option>
+                </select>
               </div>
-            )}
-            <div className="hidden group-hover:flex absolute top-full right-0 mt-2 bg-[#131313] border border-white/10 rounded-sm p-2 flex-col gap-2 shadow-2xl min-w-[150px] before:absolute before:content-[''] before:-top-2 before:left-0 before:right-0 before:h-2">
-              <div className="px-3 py-2 text-white text-xs border-b border-white/10">{user.displayName}</div>
-              <button onClick={onLogoutClick} className="flex items-center gap-2 px-3 py-2 text-white/60 hover:text-white hover:bg-white/5 transition text-xs text-left w-full rounded-sm">
-                <LogOut className="w-4 h-4" /> Đăng xuất
-              </button>
             </div>
+            <button 
+              onClick={() => {
+                if (!isExpanded) {
+                  setIsExpanded(true);
+                } else if (searchQuery.trim() !== '') {
+                  onSearchSubmit(searchQuery);
+                } else {
+                  setIsExpanded(false);
+                }
+              }} 
+              className="flex-shrink-0 text-white/60 hover:text-white transition"
+            >
+              <Search className="w-5 h-5" />
+            </button>
           </div>
-        ) : (
-          <button onClick={onLoginClick} className="text-white/60 hover:text-white transition text-xs font-semibold uppercase tracking-widest bg-white/5 px-4 py-2 rounded-sm border border-white/10 hover:bg-white/10">Sign In</button>
-        )}
+          {user ? (
+            <div className="flex items-center gap-4 group relative">
+              {user.avatarUrl ? (
+                <img src={user.avatarUrl} alt="Avatar" className="w-8 h-8 rounded-full border border-white/10" />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center border border-white/10">
+                  <UserIcon className="w-4 h-4 text-white/60" />
+                </div>
+              )}
+              <div className="hidden group-hover:flex absolute top-full right-0 mt-2 bg-[#131313] border border-white/10 rounded-sm p-2 flex-col gap-2 shadow-2xl min-w-[150px] before:absolute before:content-[''] before:-top-2 before:left-0 before:right-0 before:h-2">
+                <div className="px-3 py-2 text-white text-xs border-b border-white/10">{user.displayName}</div>
+                <button onClick={onLogoutClick} className="flex items-center gap-2 px-3 py-2 text-white/60 hover:text-white hover:bg-white/5 transition text-xs text-left w-full rounded-sm">
+                  <LogOut className="w-4 h-4" /> Đăng xuất
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button onClick={onLoginClick} className="text-white/60 hover:text-white transition text-xs font-semibold uppercase tracking-widest bg-white/5 px-4 py-2 rounded-sm border border-white/10 hover:bg-white/10">Sign In</button>
+          )}
+        </div>
       </div>
-    </div>
-  </nav>
-));
+    </nav>
+  );
+});
 Navbar.displayName = 'Navbar';
  
 // ─── HoverPlayer (Super Optimized - Lazy Video) ───────────────────────────────
@@ -154,7 +218,6 @@ export default function CinemaApp() {
   
   const [movies, setMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const urlSearchQuery = router.query.q as string;
   const [activeTab, setActiveTab] = useState('cinema');
@@ -197,16 +260,7 @@ export default function CinemaApp() {
     }
   }, [user]);
  
-  // Sync Escape key to close Search Overlay
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setSearchOpen(false);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+
 
   // 1. Sync Tab from URL
   useEffect(() => {
@@ -282,10 +336,12 @@ export default function CinemaApp() {
         <Navbar 
           activeTab={activeTab} 
           onTabChange={handleTabChange} 
-          onSearchOpen={() => setSearchOpen(true)} 
           user={user}
           onLoginClick={() => setAuthModalOpen(true)}
           onLogoutClick={logout}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          onSearchSubmit={(q: string) => router.push(`/?q=${encodeURIComponent(q.trim())}`, undefined, { shallow: true })}
         />
         
         {activeTab === 'library' ? (
@@ -339,10 +395,10 @@ export default function CinemaApp() {
               </>
             )}
           </main>
-        ) : !searchOpen && urlSearchQuery ? (
+        ) : urlSearchQuery ? (
           <main className="w-full max-w-[1600px] mx-auto px-8 md:px-16 pt-32 min-h-[70vh]">
             <div className="mb-12">
-              <button onClick={() => router.push('/', undefined, { shallow: true })} className="text-white/40 hover:text-white flex items-center gap-2 mb-8 transition-colors text-sm uppercase tracking-widest">
+              <button onClick={() => { setSearchQuery(''); router.push('/', undefined, { shallow: true }); }} className="text-white/40 hover:text-white flex items-center gap-2 mb-8 transition-colors text-sm uppercase tracking-widest">
                 <X className="w-4 h-4"/> Xóa tìm kiếm
               </button>
               <h1 className="text-[42px] font-serif font-bold text-white tracking-tight">
@@ -403,7 +459,7 @@ export default function CinemaApp() {
               );
             })()}
           </main>
-        ) : !searchOpen && (
+        ) : (
           <>
             {/* Hero */}
             <header className="relative w-full h-[90vh] min-h-[700px] flex items-end overflow-hidden">
@@ -458,154 +514,7 @@ export default function CinemaApp() {
           <p className="text-[10px] tracking-[0.4em] uppercase text-white/10">© 2026 TVIEN. THE VOID IS CALLING.</p>
         </footer>
 
-        {/* Search Overlay */}
-        {searchOpen && (
-          <div className="fixed inset-0 z-50 bg-white/10 backdrop-blur-2xl animate-fade-in flex flex-col p-8 md:p-16 overflow-y-auto">
-            <div className="flex justify-between items-center max-w-[1600px] w-full mx-auto mb-16">
-              <span className="text-[11px] tracking-[0.25em] uppercase font-bold text-white/40">Search Movies</span>
-              <button 
-                onClick={() => { setSearchOpen(false); setSearchQuery(''); }} 
-                className="text-white/60 hover:text-white transition-colors p-2 hover:scale-110 duration-200"
-              >
-                <X className="w-8 h-8" strokeWidth={1} />
-              </button>
-            </div>
 
-            <div className="max-w-[1600px] w-full mx-auto flex-1 flex flex-col">
-              <div className="relative mb-16 border-b border-white/10 pb-4 focus-within:border-white transition-colors duration-300 flex items-center">
-                <Search className="w-8 h-8 text-white/40 mr-4 flex-shrink-0" strokeWidth={1.5} />
-                <input 
-                  type="text" 
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && searchQuery.trim() !== '') {
-                      setSearchOpen(false);
-                      router.push(`/?q=${encodeURIComponent(searchQuery.trim())}`, undefined, { shallow: true });
-                    }
-                  }}
-                  placeholder="Tìm kiếm theo phim, diễn viên: abc, đạo diễn: xyz..."
-                  className="w-full bg-transparent text-2xl md:text-4xl font-serif text-white placeholder-white/40 border-none outline-none focus:ring-0"
-                  autoFocus
-                />
-                {searchQuery && (
-                  <button onClick={() => setSearchQuery('')} className="text-white/40 hover:text-white p-2 mr-4 flex-shrink-0">
-                    <X className="w-6 h-6" />
-                  </button>
-                )}
-                <div className="relative flex items-center ml-4 border-l border-white/20 pl-4 flex-shrink-0 cursor-pointer text-white/60 hover:text-white transition-colors group">
-                  <Filter className="w-5 h-5 md:w-6 md:h-6 opacity-70 group-hover:opacity-100 transition-opacity" />
-                  <select 
-                    value="" 
-                    onChange={(e) => { 
-                      if (e.target.value) {
-                        setSearchQuery(prev => prev ? prev.trim() + ', ' + e.target.value : e.target.value);
-                        setTimeout(() => document.querySelector('input')?.focus(), 50);
-                      }
-                    }}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  >
-                    <option value="" disabled className="bg-[#131313]">Chọn phân loại...</option>
-                    <option value="diễn viên: " className="bg-[#131313]">Diễn viên</option>
-                    <option value="đạo diễn: " className="bg-[#131313]">Đạo diễn</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex-1">
-                {searchQuery.trim() === '' ? (
-                  <div className="animate-fade-in">
-                    <h3 className="text-white/40 text-xs font-bold uppercase tracking-[0.2em] mb-8">Popular Suggestions</h3>
-                    <div className="flex flex-wrap gap-4">
-                      {movies.slice(0, 6).map(m => (
-                        <button 
-                          key={m.id}
-                          onClick={() => setSearchQuery(m.title)}
-                          className="px-6 py-3 bg-white/5 hover:bg-white/10 transition border border-white/5 hover:border-white/20 rounded-sm text-white/80 text-xs tracking-wider font-light"
-                        >
-                          {m.title}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="animate-fade-in">
-                    <h3 className="text-white/40 text-xs font-bold uppercase tracking-[0.2em] mb-12">
-                      Gợi ý tìm kiếm
-                    </h3>
-                    {(() => {
-                      if (!searchQuery.trim()) return null;
-                      
-                      const segments = searchQuery.split(',');
-                      const lastSegment = segments[segments.length - 1].trimStart();
-                      if (!lastSegment && !lastSegment.startsWith('diễn viên:') && !lastSegment.startsWith('đạo diễn:')) return null;
-
-                      const isActorSearch = lastSegment.toLowerCase().startsWith('diễn viên:');
-                      const isDirectorSearch = lastSegment.toLowerCase().startsWith('đạo diễn:');
-                      
-                      const searchTerm = isActorSearch ? lastSegment.substring('diễn viên:'.length).trim().toLowerCase() :
-                                         isDirectorSearch ? lastSegment.substring('đạo diễn:'.length).trim().toLowerCase() :
-                                         lastSegment.toLowerCase();
-                                         
-                      let suggestions: { type: string, label: string, filter: string }[] = [];
-                      
-                      if (!isActorSearch && !isDirectorSearch) {
-                        movies.filter(m => m.title.toLowerCase().includes(searchTerm) || m.description?.toLowerCase().includes(searchTerm)).slice(0, 3).forEach(m => {
-                          suggestions.push({ type: 'Phim', label: m.title, filter: 'movie' });
-                        });
-                      }
-                      
-                      if (!isDirectorSearch) {
-                        uniqueActors.filter(a => a.toLowerCase().includes(searchTerm)).slice(0, 3).forEach(a => {
-                          suggestions.push({ type: 'Diễn viên', label: a, filter: 'actor' });
-                        });
-                      }
-                      
-                      if (!isActorSearch) {
-                        uniqueDirectors.filter(d => d.toLowerCase().includes(searchTerm)).slice(0, 3).forEach(d => {
-                          suggestions.push({ type: 'Đạo diễn', label: d, filter: 'director' });
-                        });
-                      }
-
-                      if (suggestions.length === 0) {
-                        return (
-                          <div className="py-20 text-center border border-dashed border-white/5 rounded-sm bg-white/[0.01]">
-                            <p className="text-white/30 text-lg font-light tracking-wide">Không tìm thấy gợi ý nào.</p>
-                          </div>
-                        );
-                      }
-                      
-                      return (
-                        <div className="flex flex-col gap-3">
-                          {suggestions.map((s, idx) => (
-                            <button 
-                              key={idx}
-                              onClick={() => {
-                                const newSegments = [...segments];
-                                let completedText = '';
-                                if (s.filter === 'movie') completedText = s.label;
-                                else if (s.filter === 'actor') completedText = 'diễn viên: ' + s.label;
-                                else if (s.filter === 'director') completedText = 'đạo diễn: ' + s.label;
-                                
-                                newSegments[newSegments.length - 1] = ' ' + completedText;
-                                setSearchQuery(newSegments.join(',').trimStart() + ', ');
-                                document.querySelector('input')?.focus();
-                              }}
-                              className="text-left px-6 py-4 bg-white/5 hover:bg-white/10 transition border border-white/5 hover:border-white/20 rounded-sm text-white/80 text-xl font-light flex items-center gap-4"
-                            >
-                              <span className="text-xs uppercase tracking-[0.2em] font-bold text-white/40 bg-white/5 px-3 py-1 rounded-sm w-[120px] text-center">{s.type}</span>
-                              <span>{s.label}</span>
-                            </button>
-                          ))}
-                        </div>
-                      );
-                    })()}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
 
         <AuthModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} />
       </div>
