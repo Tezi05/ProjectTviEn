@@ -460,7 +460,7 @@ export default function CinemaApp() {
 
         {/* Search Overlay */}
         {searchOpen && (
-          <div className="fixed inset-0 z-50 bg-[#131313]/98 backdrop-blur-3xl animate-fade-in flex flex-col p-8 md:p-16 overflow-y-auto">
+          <div className="fixed inset-0 z-50 bg-white/10 backdrop-blur-2xl animate-fade-in flex flex-col p-8 md:p-16 overflow-y-auto">
             <div className="flex justify-between items-center max-w-[1600px] w-full mx-auto mb-16">
               <span className="text-[11px] tracking-[0.25em] uppercase font-bold text-white/40">Search Movies</span>
               <button 
@@ -485,7 +485,7 @@ export default function CinemaApp() {
                     }
                   }}
                   placeholder="Tìm kiếm theo phim, diễn viên: abc, đạo diễn: xyz..."
-                  className="w-full bg-transparent text-3xl md:text-5xl font-serif text-white placeholder-white/20 border-none outline-none focus:ring-0"
+                  className="w-full bg-transparent text-2xl md:text-4xl font-serif text-white placeholder-white/40 border-none outline-none focus:ring-0"
                   autoFocus
                 />
                 {searchQuery && (
