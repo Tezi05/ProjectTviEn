@@ -462,17 +462,7 @@ export default function CinemaApp() {
 
             <div className="max-w-[1600px] w-full mx-auto flex-1 flex flex-col">
               <div className="relative mb-16 border-b border-white/10 pb-4 focus-within:border-white transition-colors duration-300 flex items-center">
-                <select 
-                  value={searchFilter} 
-                  onChange={(e) => setSearchFilter(e.target.value)}
-                  className="bg-transparent text-white/60 text-lg md:text-2xl outline-none focus:ring-0 mr-4 border-r border-white/20 pr-4 cursor-pointer"
-                >
-                  <option value="all" className="bg-[#131313]">Tất cả</option>
-                  <option value="movie" className="bg-[#131313]">Phim</option>
-                  <option value="actor" className="bg-[#131313]">Diễn viên</option>
-                  <option value="director" className="bg-[#131313]">Đạo diễn</option>
-                </select>
-                <Search className="w-8 h-8 text-white/40 mr-4" strokeWidth={1.5} />
+                <Search className="w-8 h-8 text-white/40 mr-4 flex-shrink-0" strokeWidth={1.5} />
                 <input 
                   type="text" 
                   value={searchQuery}
@@ -483,15 +473,30 @@ export default function CinemaApp() {
                       router.push(`/?q=${encodeURIComponent(searchQuery.trim())}&filter=${searchFilter}`, undefined, { shallow: true });
                     }
                   }}
-                  placeholder="Type to search movies, genres..." 
+                  placeholder={
+                    searchFilter === 'actor' ? 'Nhập tên diễn viên...' :
+                    searchFilter === 'director' ? 'Nhập tên đạo diễn...' :
+                    searchFilter === 'movie' ? 'Nhập tên phim...' :
+                    'Tìm kiếm phim, diễn viên, đạo diễn...'
+                  }
                   className="w-full bg-transparent text-3xl md:text-5xl font-serif text-white placeholder-white/20 border-none outline-none focus:ring-0"
                   autoFocus
                 />
                 {searchQuery && (
-                  <button onClick={() => setSearchQuery('')} className="text-white/40 hover:text-white p-2">
-                    <X className="w-5 h-5" />
+                  <button onClick={() => setSearchQuery('')} className="text-white/40 hover:text-white p-2 mr-4 flex-shrink-0">
+                    <X className="w-6 h-6" />
                   </button>
                 )}
+                <select 
+                  value={searchFilter} 
+                  onChange={(e) => { setSearchFilter(e.target.value); document.querySelector('input')?.focus(); }}
+                  className="bg-transparent text-white/60 text-lg md:text-2xl outline-none focus:ring-0 ml-4 border-l border-white/20 pl-4 cursor-pointer flex-shrink-0"
+                >
+                  <option value="all" className="bg-[#131313]">Tất cả</option>
+                  <option value="movie" className="bg-[#131313]">Phim</option>
+                  <option value="actor" className="bg-[#131313]">Diễn viên</option>
+                  <option value="director" className="bg-[#131313]">Đạo diễn</option>
+                </select>
               </div>
 
               <div className="flex-1">
