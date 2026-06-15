@@ -156,8 +156,7 @@ export default function CinemaApp() {
   const [loading, setLoading] = useState(true);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchFilter, setSearchFilter] = useState('all');
-  const urlFilter = router.query.filter as string || 'all';
+  const urlSearchQuery = router.query.q as string;
   const [activeTab, setActiveTab] = useState('cinema');
   
   const uniqueActors = React.useMemo(() => Array.from(new Set(movies.flatMap(m => m.crews?.filter(c => c.roleId === 2).map(c => c.fullName) || []))), [movies]);
@@ -208,8 +207,6 @@ export default function CinemaApp() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
-
-  const urlSearchQuery = router.query.q as string;
 
   // 1. Sync Tab from URL
   useEffect(() => {
@@ -353,27 +350,41 @@ export default function CinemaApp() {
               </h1>
               <p className="text-white/40 mt-2">
                 Tìm thấy {(() => {
-                  const isMatch = (m: Movie, q: string, f: string) => {
-                    const lq = q.toLowerCase();
-                    if (f === 'movie') return m.title.toLowerCase().includes(lq) || m.description?.toLowerCase().includes(lq);
-                    if (f === 'actor') return m.crews?.some(c => c.roleId === 2 && c.fullName.toLowerCase().includes(lq));
-                    if (f === 'director') return m.crews?.some(c => c.roleId === 1 && c.fullName.toLowerCase().includes(lq));
-                    return m.title.toLowerCase().includes(lq) || m.description?.toLowerCase().includes(lq) || m.crews?.some(c => c.fullName.toLowerCase().includes(lq));
+                  const isMatch = (m: Movie, q: string) => {
+                    if (!q.trim()) return true;
+                    const segments = q.split(',').map(s => s.trim()).filter(Boolean);
+                    const actors: string[] = []; const directors: string[] = []; const titles: string[] = [];
+                    segments.forEach(seg => {
+                        if (seg.toLowerCase().startsWith('diễn viên:')) actors.push(seg.substring('diễn viên:'.length).trim().toLowerCase());
+                        else if (seg.toLowerCase().startsWith('đạo diễn:')) directors.push(seg.substring('đạo diễn:'.length).trim().toLowerCase());
+                        else titles.push(seg.toLowerCase());
+                    });
+                    if (actors.length > 0 && !actors.every(a => m.crews?.some(c => c.roleId === 2 && c.fullName.toLowerCase().includes(a)))) return false;
+                    if (directors.length > 0 && !directors.every(d => m.crews?.some(c => c.roleId === 1 && c.fullName.toLowerCase().includes(d)))) return false;
+                    if (titles.length > 0 && !titles.every(t => m.title.toLowerCase().includes(t) || m.description?.toLowerCase().includes(t))) return false;
+                    return true;
                   };
-                  return movies.filter(m => isMatch(m, urlSearchQuery, urlFilter)).length;
-                })()} phim {urlFilter !== 'all' && `(Bộ lọc: ${urlFilter === 'actor' ? 'Diễn viên' : urlFilter === 'director' ? 'Đạo diễn' : 'Phim'})`}
+                  return movies.filter(m => isMatch(m, urlSearchQuery)).length;
+                })()} phim
               </p>
             </div>
             
             {(() => {
-              const isMatch = (m: Movie, q: string, f: string) => {
-                const lq = q.toLowerCase();
-                if (f === 'movie') return m.title.toLowerCase().includes(lq) || m.description?.toLowerCase().includes(lq);
-                if (f === 'actor') return m.crews?.some(c => c.roleId === 2 && c.fullName.toLowerCase().includes(lq));
-                if (f === 'director') return m.crews?.some(c => c.roleId === 1 && c.fullName.toLowerCase().includes(lq));
-                return m.title.toLowerCase().includes(lq) || m.description?.toLowerCase().includes(lq) || m.crews?.some(c => c.fullName.toLowerCase().includes(lq));
+              const isMatch = (m: Movie, q: string) => {
+                if (!q.trim()) return true;
+                const segments = q.split(',').map(s => s.trim()).filter(Boolean);
+                const actors: string[] = []; const directors: string[] = []; const titles: string[] = [];
+                segments.forEach(seg => {
+                    if (seg.toLowerCase().startsWith('diễn viên:')) actors.push(seg.substring('diễn viên:'.length).trim().toLowerCase());
+                    else if (seg.toLowerCase().startsWith('đạo diễn:')) directors.push(seg.substring('đạo diễn:'.length).trim().toLowerCase());
+                    else titles.push(seg.toLowerCase());
+                });
+                if (actors.length > 0 && !actors.every(a => m.crews?.some(c => c.roleId === 2 && c.fullName.toLowerCase().includes(a)))) return false;
+                if (directors.length > 0 && !directors.every(d => m.crews?.some(c => c.roleId === 1 && c.fullName.toLowerCase().includes(d)))) return false;
+                if (titles.length > 0 && !titles.every(t => m.title.toLowerCase().includes(t) || m.description?.toLowerCase().includes(t))) return false;
+                return true;
               };
-              const results = movies.filter(m => isMatch(m, urlSearchQuery, urlFilter));
+              const results = movies.filter(m => isMatch(m, urlSearchQuery));
               
               if (results.length === 0) {
                 return (
@@ -470,15 +481,10 @@ export default function CinemaApp() {
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && searchQuery.trim() !== '') {
                       setSearchOpen(false);
-                      router.push(`/?q=${encodeURIComponent(searchQuery.trim())}&filter=${searchFilter}`, undefined, { shallow: true });
+                      router.push(`/?q=${encodeURIComponent(searchQuery.trim())}`, undefined, { shallow: true });
                     }
                   }}
-                  placeholder={
-                    searchFilter === 'actor' ? 'Nhập tên diễn viên...' :
-                    searchFilter === 'director' ? 'Nhập tên đạo diễn...' :
-                    searchFilter === 'movie' ? 'Nhập tên phim...' :
-                    'Tìm kiếm phim, diễn viên, đạo diễn...'
-                  }
+                  placeholder="Tìm kiếm theo phim, diễn viên: abc, đạo diễn: xyz..."
                   className="w-full bg-transparent text-3xl md:text-5xl font-serif text-white placeholder-white/20 border-none outline-none focus:ring-0"
                   autoFocus
                 />
@@ -488,14 +494,18 @@ export default function CinemaApp() {
                   </button>
                 )}
                 <select 
-                  value={searchFilter} 
-                  onChange={(e) => { setSearchFilter(e.target.value); document.querySelector('input')?.focus(); }}
+                  value="" 
+                  onChange={(e) => { 
+                    if (e.target.value) {
+                      setSearchQuery(prev => prev ? prev.trim() + ', ' + e.target.value : e.target.value);
+                      setTimeout(() => document.querySelector('input')?.focus(), 50);
+                    }
+                  }}
                   className="bg-transparent text-white/60 text-lg md:text-2xl outline-none focus:ring-0 ml-4 border-l border-white/20 pl-4 cursor-pointer flex-shrink-0"
                 >
-                  <option value="all" className="bg-[#131313]">Tất cả</option>
-                  <option value="movie" className="bg-[#131313]">Phim</option>
-                  <option value="actor" className="bg-[#131313]">Diễn viên</option>
-                  <option value="director" className="bg-[#131313]">Đạo diễn</option>
+                  <option value="" className="bg-[#131313]">Bộ lọc...</option>
+                  <option value="diễn viên: " className="bg-[#131313]">Diễn viên</option>
+                  <option value="đạo diễn: " className="bg-[#131313]">Đạo diễn</option>
                 </select>
               </div>
 
@@ -521,25 +531,35 @@ export default function CinemaApp() {
                       Gợi ý tìm kiếm
                     </h3>
                     {(() => {
-                      const q = searchQuery.toLowerCase().trim();
-                      if (!q) return null;
+                      if (!searchQuery.trim()) return null;
                       
+                      const segments = searchQuery.split(',');
+                      const lastSegment = segments[segments.length - 1].trimStart();
+                      if (!lastSegment && !lastSegment.startsWith('diễn viên:') && !lastSegment.startsWith('đạo diễn:')) return null;
+
+                      const isActorSearch = lastSegment.toLowerCase().startsWith('diễn viên:');
+                      const isDirectorSearch = lastSegment.toLowerCase().startsWith('đạo diễn:');
+                      
+                      const searchTerm = isActorSearch ? lastSegment.substring('diễn viên:'.length).trim().toLowerCase() :
+                                         isDirectorSearch ? lastSegment.substring('đạo diễn:'.length).trim().toLowerCase() :
+                                         lastSegment.toLowerCase();
+                                         
                       let suggestions: { type: string, label: string, filter: string }[] = [];
                       
-                      if (searchFilter === 'all' || searchFilter === 'movie') {
-                        movies.filter(m => m.title.toLowerCase().includes(q) || m.description?.toLowerCase().includes(q)).slice(0, 3).forEach(m => {
+                      if (!isActorSearch && !isDirectorSearch) {
+                        movies.filter(m => m.title.toLowerCase().includes(searchTerm) || m.description?.toLowerCase().includes(searchTerm)).slice(0, 3).forEach(m => {
                           suggestions.push({ type: 'Phim', label: m.title, filter: 'movie' });
                         });
                       }
                       
-                      if (searchFilter === 'all' || searchFilter === 'actor') {
-                        uniqueActors.filter(a => a.toLowerCase().includes(q)).slice(0, 3).forEach(a => {
+                      if (!isDirectorSearch) {
+                        uniqueActors.filter(a => a.toLowerCase().includes(searchTerm)).slice(0, 3).forEach(a => {
                           suggestions.push({ type: 'Diễn viên', label: a, filter: 'actor' });
                         });
                       }
                       
-                      if (searchFilter === 'all' || searchFilter === 'director') {
-                        uniqueDirectors.filter(d => d.toLowerCase().includes(q)).slice(0, 3).forEach(d => {
+                      if (!isActorSearch) {
+                        uniqueDirectors.filter(d => d.toLowerCase().includes(searchTerm)).slice(0, 3).forEach(d => {
                           suggestions.push({ type: 'Đạo diễn', label: d, filter: 'director' });
                         });
                       }
@@ -558,8 +578,15 @@ export default function CinemaApp() {
                             <button 
                               key={idx}
                               onClick={() => {
-                                setSearchOpen(false);
-                                router.push(`/?q=${encodeURIComponent(s.label)}&filter=${s.filter}`, undefined, { shallow: true });
+                                const newSegments = [...segments];
+                                let completedText = '';
+                                if (s.filter === 'movie') completedText = s.label;
+                                else if (s.filter === 'actor') completedText = 'diễn viên: ' + s.label;
+                                else if (s.filter === 'director') completedText = 'đạo diễn: ' + s.label;
+                                
+                                newSegments[newSegments.length - 1] = ' ' + completedText;
+                                setSearchQuery(newSegments.join(',').trimStart() + ', ');
+                                document.querySelector('input')?.focus();
                               }}
                               className="text-left px-6 py-4 bg-white/5 hover:bg-white/10 transition border border-white/5 hover:border-white/20 rounded-sm text-white/80 text-xl font-light flex items-center gap-4"
                             >
