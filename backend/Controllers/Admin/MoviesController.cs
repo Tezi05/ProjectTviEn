@@ -47,7 +47,8 @@ namespace ProjectTviEn.Controllers.Admin
                 m.AgeRating,
                 m.ViewCount, 
                 m.Status, 
-                m.UpdatedAt
+                m.UpdatedAt,
+                Crews = m.MovieCrews.Select(c => new { c.Person.FullName, c.RoleId }).ToList()
             }).ToListAsync();
 
             var movies = moviesRaw.Select(m => new {
@@ -64,6 +65,7 @@ namespace ProjectTviEn.Controllers.Admin
                 m.ViewCount,
                 m.Status,
                 m.UpdatedAt,
+                m.Crews,
                 JobStatus = _context.IngestJobs.Where(j => j.MovieId == m.Id).OrderByDescending(j => j.CreatedAt).Select(j => new { j.Status, j.Logs, j.FinishedAt }).FirstOrDefault()
             }).ToList();
 

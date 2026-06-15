@@ -16,6 +16,7 @@ interface Movie {
   weeklyViews?: number;
   weeklyViewsResetWeek?: number;
   movieType?: string;
+  crews?: { fullName: string, roleId: number }[];
 }
  
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -43,6 +44,7 @@ function normalizeMovie(d: any): Movie {
     weeklyViews:          d.weeklyViews      ?? d.WeeklyViews      ?? 0,
     weeklyViewsResetWeek: d.weeklyViewsResetWeek ?? d.WeeklyViewsResetWeek ?? 0,
     movieType:            d.movieType        ?? d.MovieType        ?? 'movie',
+    crews:                d.crews            ?? d.Crews            ?? [],
   };
 }
  
@@ -154,7 +156,12 @@ export default function CinemaApp() {
   const [loading, setLoading] = useState(true);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchFilter, setSearchFilter] = useState('all');
+  const urlFilter = router.query.filter as string || 'all';
   const [activeTab, setActiveTab] = useState('cinema');
+  
+  const uniqueActors = React.useMemo(() => Array.from(new Set(movies.flatMap(m => m.crews?.filter(c => c.roleId === 2).map(c => c.fullName) || []))), [movies]);
+  const uniqueDirectors = React.useMemo(() => Array.from(new Set(movies.flatMap(m => m.crews?.filter(c => c.roleId === 1).map(c => c.fullName) || []))), [movies]);
   
   const { user, logout } = useAuth();
   const [authModalOpen, setAuthModalOpen] = useState(false);
@@ -196,12 +203,13 @@ export default function CinemaApp() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setSearchOpen(false);
-        setSearchQuery('');
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  const urlSearchQuery = router.query.q as string;
 
   // 1. Sync Tab from URL
   useEffect(() => {
@@ -333,8 +341,58 @@ export default function CinemaApp() {
                 </section>
               </>
             )}
+        {/* Main Content */}
+        {!searchOpen && urlSearchQuery ? (
+          <main className="w-full max-w-[1600px] mx-auto px-8 md:px-16 pt-32 min-h-[70vh]">
+            <div className="mb-12">
+              <button onClick={() => router.push('/', undefined, { shallow: true })} className="text-white/40 hover:text-white flex items-center gap-2 mb-8 transition-colors text-sm uppercase tracking-widest">
+                <X className="w-4 h-4"/> Xóa tìm kiếm
+              </button>
+              <h1 className="text-[42px] font-serif font-bold text-white tracking-tight">
+                Kết quả tìm kiếm cho "{urlSearchQuery}"
+              </h1>
+              <p className="text-white/40 mt-2">
+                Tìm thấy {(() => {
+                  const isMatch = (m: Movie, q: string, f: string) => {
+                    const lq = q.toLowerCase();
+                    if (f === 'movie') return m.title.toLowerCase().includes(lq) || m.description?.toLowerCase().includes(lq);
+                    if (f === 'actor') return m.crews?.some(c => c.roleId === 2 && c.fullName.toLowerCase().includes(lq));
+                    if (f === 'director') return m.crews?.some(c => c.roleId === 1 && c.fullName.toLowerCase().includes(lq));
+                    return m.title.toLowerCase().includes(lq) || m.description?.toLowerCase().includes(lq) || m.crews?.some(c => c.fullName.toLowerCase().includes(lq));
+                  };
+                  return movies.filter(m => isMatch(m, urlSearchQuery, urlFilter)).length;
+                })()} phim {urlFilter !== 'all' && `(Bộ lọc: ${urlFilter === 'actor' ? 'Diễn viên' : urlFilter === 'director' ? 'Đạo diễn' : 'Phim'})`}
+              </p>
+            </div>
+            
+            {(() => {
+              const isMatch = (m: Movie, q: string, f: string) => {
+                const lq = q.toLowerCase();
+                if (f === 'movie') return m.title.toLowerCase().includes(lq) || m.description?.toLowerCase().includes(lq);
+                if (f === 'actor') return m.crews?.some(c => c.roleId === 2 && c.fullName.toLowerCase().includes(lq));
+                if (f === 'director') return m.crews?.some(c => c.roleId === 1 && c.fullName.toLowerCase().includes(lq));
+                return m.title.toLowerCase().includes(lq) || m.description?.toLowerCase().includes(lq) || m.crews?.some(c => c.fullName.toLowerCase().includes(lq));
+              };
+              const results = movies.filter(m => isMatch(m, urlSearchQuery, urlFilter));
+              
+              if (results.length === 0) {
+                return (
+                  <div className="py-20 text-center border border-dashed border-white/5 rounded-sm bg-white/[0.01]">
+                    <p className="text-white/30 text-lg font-light tracking-wide">Không tìm thấy phim nào phù hợp.</p>
+                  </div>
+                );
+              }
+              
+              return (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-8">
+                  {results.map(m => (
+                    <HoverPlayer key={m.id} {...m} />
+                  ))}
+                </div>
+              );
+            })()}
           </main>
-        ) : (
+        ) : !searchOpen && (
           <>
             {/* Hero */}
             <header className="relative w-full h-[90vh] min-h-[700px] flex items-end overflow-hidden">
@@ -404,11 +462,27 @@ export default function CinemaApp() {
 
             <div className="max-w-[1600px] w-full mx-auto flex-1 flex flex-col">
               <div className="relative mb-16 border-b border-white/10 pb-4 focus-within:border-white transition-colors duration-300 flex items-center">
+                <select 
+                  value={searchFilter} 
+                  onChange={(e) => setSearchFilter(e.target.value)}
+                  className="bg-transparent text-white/60 text-lg md:text-2xl outline-none focus:ring-0 mr-4 border-r border-white/20 pr-4 cursor-pointer"
+                >
+                  <option value="all" className="bg-[#131313]">Tất cả</option>
+                  <option value="movie" className="bg-[#131313]">Phim</option>
+                  <option value="actor" className="bg-[#131313]">Diễn viên</option>
+                  <option value="director" className="bg-[#131313]">Đạo diễn</option>
+                </select>
                 <Search className="w-8 h-8 text-white/40 mr-4" strokeWidth={1.5} />
                 <input 
                   type="text" 
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && searchQuery.trim() !== '') {
+                      setSearchOpen(false);
+                      router.push(`/?q=${encodeURIComponent(searchQuery.trim())}&filter=${searchFilter}`, undefined, { shallow: true });
+                    }
+                  }}
                   placeholder="Type to search movies, genres..." 
                   className="w-full bg-transparent text-3xl md:text-5xl font-serif text-white placeholder-white/20 border-none outline-none focus:ring-0"
                   autoFocus
@@ -439,24 +513,58 @@ export default function CinemaApp() {
                 ) : (
                   <div className="animate-fade-in">
                     <h3 className="text-white/40 text-xs font-bold uppercase tracking-[0.2em] mb-12">
-                      Search Results ({movies.filter(m => m.title.toLowerCase().includes(searchQuery.toLowerCase()) || m.description?.toLowerCase().includes(searchQuery.toLowerCase())).length})
+                      Gợi ý tìm kiếm
                     </h3>
-                    
-                    {movies.filter(m => m.title.toLowerCase().includes(searchQuery.toLowerCase()) || m.description?.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 ? (
-                      <div className="py-20 text-center border border-dashed border-white/5 rounded-sm bg-white/[0.01]">
-                        <p className="text-white/30 text-lg font-light tracking-wide">No movies match your search query.</p>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-8">
-                        {movies
-                          .filter(m => m.title.toLowerCase().includes(searchQuery.toLowerCase()) || m.description?.toLowerCase().includes(searchQuery.toLowerCase()))
-                          .map(m => (
-                            <div key={m.id} onClick={() => { setSearchOpen(false); setSearchQuery(''); }} className="transform hover:scale-105 transition-transform duration-300">
-                              <HoverPlayer {...m} />
-                            </div>
+                    {(() => {
+                      const q = searchQuery.toLowerCase().trim();
+                      if (!q) return null;
+                      
+                      let suggestions: { type: string, label: string, filter: string }[] = [];
+                      
+                      if (searchFilter === 'all' || searchFilter === 'movie') {
+                        movies.filter(m => m.title.toLowerCase().includes(q) || m.description?.toLowerCase().includes(q)).slice(0, 3).forEach(m => {
+                          suggestions.push({ type: 'Phim', label: m.title, filter: 'movie' });
+                        });
+                      }
+                      
+                      if (searchFilter === 'all' || searchFilter === 'actor') {
+                        uniqueActors.filter(a => a.toLowerCase().includes(q)).slice(0, 3).forEach(a => {
+                          suggestions.push({ type: 'Diễn viên', label: a, filter: 'actor' });
+                        });
+                      }
+                      
+                      if (searchFilter === 'all' || searchFilter === 'director') {
+                        uniqueDirectors.filter(d => d.toLowerCase().includes(q)).slice(0, 3).forEach(d => {
+                          suggestions.push({ type: 'Đạo diễn', label: d, filter: 'director' });
+                        });
+                      }
+
+                      if (suggestions.length === 0) {
+                        return (
+                          <div className="py-20 text-center border border-dashed border-white/5 rounded-sm bg-white/[0.01]">
+                            <p className="text-white/30 text-lg font-light tracking-wide">Không tìm thấy gợi ý nào.</p>
+                          </div>
+                        );
+                      }
+                      
+                      return (
+                        <div className="flex flex-col gap-3">
+                          {suggestions.map((s, idx) => (
+                            <button 
+                              key={idx}
+                              onClick={() => {
+                                setSearchOpen(false);
+                                router.push(`/?q=${encodeURIComponent(s.label)}&filter=${s.filter}`, undefined, { shallow: true });
+                              }}
+                              className="text-left px-6 py-4 bg-white/5 hover:bg-white/10 transition border border-white/5 hover:border-white/20 rounded-sm text-white/80 text-xl font-light flex items-center gap-4"
+                            >
+                              <span className="text-xs uppercase tracking-[0.2em] font-bold text-white/40 bg-white/5 px-3 py-1 rounded-sm w-[120px] text-center">{s.type}</span>
+                              <span>{s.label}</span>
+                            </button>
                           ))}
-                      </div>
-                    )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
               </div>
