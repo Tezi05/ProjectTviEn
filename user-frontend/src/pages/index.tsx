@@ -341,8 +341,8 @@ export default function CinemaApp() {
                 </section>
               </>
             )}
-        {/* Main Content */}
-        {!searchOpen && urlSearchQuery ? (
+          </main>
+        ) : !searchOpen && urlSearchQuery ? (
           <main className="w-full max-w-[1600px] mx-auto px-8 md:px-16 pt-32 min-h-[70vh]">
             <div className="mb-12">
               <button onClick={() => router.push('/', undefined, { shallow: true })} className="text-white/40 hover:text-white flex items-center gap-2 mb-8 transition-colors text-sm uppercase tracking-widest">
