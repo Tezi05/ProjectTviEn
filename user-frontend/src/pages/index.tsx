@@ -494,7 +494,7 @@ export default function CinemaApp() {
                   </button>
                 )}
                 <div className="relative flex items-center ml-4 border-l border-white/20 pl-4 flex-shrink-0 cursor-pointer text-white/60 hover:text-white transition-colors group">
-                  <Filter className="w-5 h-5 md:w-6 md:h-6 mr-2 opacity-70 group-hover:opacity-100 transition-opacity" />
+                  <Filter className="w-5 h-5 md:w-6 md:h-6 opacity-70 group-hover:opacity-100 transition-opacity" />
                   <select 
                     value="" 
                     onChange={(e) => { 
@@ -503,9 +503,9 @@ export default function CinemaApp() {
                         setTimeout(() => document.querySelector('input')?.focus(), 50);
                       }
                     }}
-                    className="bg-transparent text-lg md:text-2xl outline-none focus:ring-0 cursor-pointer appearance-none"
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   >
-                    <option value="" className="bg-[#131313]">Bộ lọc...</option>
+                    <option value="" disabled className="bg-[#131313]">Chọn phân loại...</option>
                     <option value="diễn viên: " className="bg-[#131313]">Diễn viên</option>
                     <option value="đạo diễn: " className="bg-[#131313]">Đạo diễn</option>
                   </select>
