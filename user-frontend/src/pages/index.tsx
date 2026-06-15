@@ -49,7 +49,7 @@ function normalizeMovie(d: any): Movie {
 }
  
 // ─── Navbar (Optimized) ──────────────────────────────────────────────────────
-const Navbar = memo(({ activeTab, onTabChange, user, onLoginClick, onLogoutClick, searchQuery, setSearchQuery, onSearchSubmit }: any) => {
+const Navbar = memo(({ activeTab, onTabChange, user, onLoginClick, onLogoutClick, searchQuery, setSearchQuery, onSearchSubmit, movies = [], uniqueActors = [], uniqueDirectors = [] }: any) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -127,6 +127,67 @@ const Navbar = memo(({ activeTab, onTabChange, user, onLoginClick, onLogoutClick
 
 
           </div>
+
+          {/* Suggestions Dropdown — Chỉ hiển thị khi đang expand và có từ khóa tìm kiếm */}
+          {isExpanded && searchQuery.trim() !== '' && (() => {
+            const segments = searchQuery.split(',');
+            const lastSegment = segments[segments.length - 1].trimStart();
+            
+            const isActorSearch = lastSegment.toLowerCase().startsWith('diễn viên:');
+            const isDirectorSearch = lastSegment.toLowerCase().startsWith('đạo diễn:');
+            
+            const searchTerm = isActorSearch ? lastSegment.substring('diễn viên:'.length).trim().toLowerCase() :
+                               isDirectorSearch ? lastSegment.substring('đạo diễn:'.length).trim().toLowerCase() :
+                               lastSegment.toLowerCase();
+                               
+            let suggestions: { type: string, label: string, filter: string }[] = [];
+            
+            if (!isActorSearch && !isDirectorSearch) {
+              movies.filter((m: any) => m.title.toLowerCase().includes(searchTerm) || m.description?.toLowerCase().includes(searchTerm)).slice(0, 3).forEach((m: any) => {
+                suggestions.push({ type: 'Phim', label: m.title, filter: 'movie' });
+              });
+            }
+            
+            if (!isDirectorSearch) {
+              uniqueActors.filter((a: any) => a.toLowerCase().includes(searchTerm)).slice(0, 3).forEach((a: any) => {
+                suggestions.push({ type: 'Diễn viên', label: a, filter: 'actor' });
+              });
+            }
+            
+            if (!isActorSearch) {
+              uniqueDirectors.filter((d: any) => d.toLowerCase().includes(searchTerm)).slice(0, 3).forEach((d: any) => {
+                suggestions.push({ type: 'Đạo diễn', label: d, filter: 'director' });
+              });
+            }
+
+            if (suggestions.length === 0) return null;
+
+            return (
+              <div className="absolute top-[76px] left-8 right-8 bg-[#131313]/95 backdrop-blur-xl border border-white/10 rounded-sm p-2 shadow-2xl flex flex-col gap-1 z-50 max-h-[280px] overflow-y-auto hide-scrollbar">
+                <div className="px-3 py-1.5 text-[9px] uppercase tracking-[0.15em] font-semibold text-white/30 border-b border-white/5 mb-1">Gợi ý tìm kiếm</div>
+                {suggestions.map((s, idx) => (
+                  <button 
+                    key={idx}
+                    onClick={() => {
+                      const newSegments = [...segments];
+                      let completedText = '';
+                      if (s.filter === 'movie') completedText = s.label;
+                      else if (s.filter === 'actor') completedText = 'diễn viên: ' + s.label;
+                      else if (s.filter === 'director') completedText = 'đạo diễn: ' + s.label;
+                      
+                      newSegments[newSegments.length - 1] = ' ' + completedText;
+                      setSearchQuery(newSegments.join(',').trimStart() + ', ');
+                      setTimeout(() => inputRef.current?.focus(), 50);
+                    }}
+                    className="text-left px-3 py-2 hover:bg-white/5 transition rounded-sm text-white/80 text-xs flex items-center gap-3 w-full"
+                  >
+                    <span className="text-[9px] uppercase tracking-wider font-bold text-white/40 bg-white/5 px-2 py-0.5 rounded-sm min-w-[80px] text-center">{s.type}</span>
+                    <span className="font-light truncate">{s.label}</span>
+                  </button>
+                ))}
+              </div>
+            );
+          })()}
         </div>
 
         {/* Phải: Search icon + Sign In / Avatar — LUÔN cố định */}
@@ -363,6 +424,9 @@ export default function CinemaApp() {
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
           onSearchSubmit={(q: string) => router.push(`/?q=${encodeURIComponent(q.trim())}`, undefined, { shallow: true })}
+          movies={movies}
+          uniqueActors={uniqueActors}
+          uniqueDirectors={uniqueDirectors}
         />
         
         {activeTab === 'library' ? (
