@@ -58,8 +58,8 @@ namespace ProjectTviEn.Controllers.Admin
                 m.OriginalTitle,
                 m.Slug,
                 m.Description,
-                PosterUrl = !string.IsNullOrEmpty(m.PosterUrl) ? _r2Service.GeneratePresignedDownloadUrl(CleanUrl(m.PosterUrl)) : null,
-                BackdropUrl = !string.IsNullOrEmpty(m.BackdropUrl) ? _r2Service.GeneratePresignedDownloadUrl(CleanUrl(m.BackdropUrl)) : null,
+                PosterUrl = !string.IsNullOrEmpty(m.PosterUrl) ? _r2Service.GeneratePresignedDownloadUrl(CleanUrl(m.PosterUrl)!) : null,
+                BackdropUrl = !string.IsNullOrEmpty(m.BackdropUrl) ? _r2Service.GeneratePresignedDownloadUrl(CleanUrl(m.BackdropUrl)!) : null,
                 m.ReleaseYear,
                 m.AgeRating,
                 m.ViewCount,
@@ -112,7 +112,7 @@ namespace ProjectTviEn.Controllers.Admin
                 m.Title,
                 m.OriginalTitle,
                 m.Slug,
-                PosterUrl = !string.IsNullOrEmpty(m.PosterUrl) ? _r2Service.GeneratePresignedDownloadUrl(CleanUrl(m.PosterUrl)) : null,
+                PosterUrl = !string.IsNullOrEmpty(m.PosterUrl) ? _r2Service.GeneratePresignedDownloadUrl(CleanUrl(m.PosterUrl)!) : null,
                 m.ReleaseYear,
                 m.EpisodeCount,
                 IsSeries = m.Type == MovieType.TvSeries,  // ✅ Frontend dùng để phân luồng
@@ -139,8 +139,8 @@ namespace ProjectTviEn.Controllers.Admin
             if (movie == null) return NotFound(new { error = "ERR_SLUG_NOT_FOUND" });
 
             // Ký URL ảnh
-            if (!string.IsNullOrEmpty(movie.PosterUrl)) movie.PosterUrl = _r2Service.GeneratePresignedDownloadUrl(CleanUrl(movie.PosterUrl));
-            if (!string.IsNullOrEmpty(movie.BackdropUrl)) movie.BackdropUrl = _r2Service.GeneratePresignedDownloadUrl(CleanUrl(movie.BackdropUrl));
+            if (!string.IsNullOrEmpty(movie.PosterUrl)) movie.PosterUrl = _r2Service.GeneratePresignedDownloadUrl(CleanUrl(movie.PosterUrl)!);
+            if (!string.IsNullOrEmpty(movie.BackdropUrl)) movie.BackdropUrl = _r2Service.GeneratePresignedDownloadUrl(CleanUrl(movie.BackdropUrl)!);
 
             return Ok(movie);
         }
@@ -171,8 +171,8 @@ namespace ProjectTviEn.Controllers.Admin
             if (movie == null) return NotFound(new { error = "ERR_ID_NOT_FOUND" });
 
             // Ký URL ảnh
-            if (!string.IsNullOrEmpty(movie.PosterUrl)) movie.PosterUrl = _r2Service.GeneratePresignedDownloadUrl(CleanUrl(movie.PosterUrl));
-            if (!string.IsNullOrEmpty(movie.BackdropUrl)) movie.BackdropUrl = _r2Service.GeneratePresignedDownloadUrl(CleanUrl(movie.BackdropUrl));
+            if (!string.IsNullOrEmpty(movie.PosterUrl)) movie.PosterUrl = _r2Service.GeneratePresignedDownloadUrl(CleanUrl(movie.PosterUrl)!);
+            if (!string.IsNullOrEmpty(movie.BackdropUrl)) movie.BackdropUrl = _r2Service.GeneratePresignedDownloadUrl(CleanUrl(movie.BackdropUrl)!);
 
             return Ok(new {
                 movie.Id,

@@ -22,7 +22,7 @@ namespace ProjectTviEn.Controllers.Public
                 .OrderByDescending(r => r.CreatedAt)
                 .Select(r => new {
                     r.ReviewId, r.Rating, r.Content, r.CreatedAt,
-                    User = new { r.User.DisplayName, r.User.AvatarUrl }
+                    User = new { r.User!.DisplayName, r.User!.AvatarUrl }
                 })
                 .ToListAsync();
             return Ok(reviews);

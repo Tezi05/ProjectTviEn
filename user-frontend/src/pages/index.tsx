@@ -77,10 +77,10 @@ const Navbar = memo(({ activeTab, onTabChange, user, onLoginClick, onLogoutClick
           </div>
 
           {/* Search bar — hiện mượt khi expand, nằm absolute để che tabs */}
-          <div className={`absolute inset-0 flex items-center transition-all duration-400 ${isExpanded ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
-            {/* Icon Filter bên trái */}
+          <div className={`absolute inset-y-0 left-8 right-8 flex items-center transition-all duration-400 ${isExpanded ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+            {/* Icon Filter bên trái — cùng size với Search icon */}
             <div className="relative flex-shrink-0 mr-4 cursor-pointer group">
-              <Filter className="w-4 h-4 text-white/50 group-hover:text-white transition-colors" />
+              <Filter className="w-5 h-5 text-white/50 group-hover:text-white transition-colors" />
               <select
                 value=""
                 onChange={(e) => {
@@ -91,7 +91,6 @@ const Navbar = memo(({ activeTab, onTabChange, user, onLoginClick, onLogoutClick
                 }}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               >
-                <option value="" disabled>Lọc theo...</option>
                 <option value="diễn viên: ">Diễn viên</option>
                 <option value="đạo diễn: ">Đạo diễn</option>
               </select>
@@ -126,24 +125,21 @@ const Navbar = memo(({ activeTab, onTabChange, user, onLoginClick, onLogoutClick
               </button>
             )}
 
-            {/* Close / thu gọn */}
-            <button
-              onClick={() => { setIsExpanded(false); setSearchQuery(''); }}
-              className="text-white/50 hover:text-white transition ml-3 flex-shrink-0"
-            >
-              <X className="w-4 h-4" />
-            </button>
+
           </div>
         </div>
 
         {/* Phải: Search icon + Sign In / Avatar — LUÔN cố định */}
         <div className="flex items-center gap-5 flex-shrink-0">
-          {/* Search icon — luôn hiển thị, mờ đi khi đang expand */}
+          {/* Search icon ↔ X toggle nhau tại cùng vị trí */}
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            className={`transition-all duration-300 ${isExpanded ? 'text-white' : 'text-white/60 hover:text-white'}`}
+            className="text-white/60 hover:text-white transition-all duration-300"
           >
-            <Search className="w-5 h-5" />
+            {isExpanded
+              ? <X className="w-5 h-5" />
+              : <Search className="w-5 h-5" />
+            }
           </button>
 
           {/* Sign In / Avatar */}

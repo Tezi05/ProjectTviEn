@@ -58,7 +58,7 @@ namespace ProjectTviEn.Controllers.Public
                     Id = h.MovieId, 
                     Title = h.MovieTitle, 
                     Slug = h.MovieSlug,
-                    PosterUrl = !string.IsNullOrEmpty(h.MoviePosterUrl) ? _r2Service.GeneratePresignedDownloadUrl(CleanUrl(h.MoviePosterUrl)) : null 
+                    PosterUrl = !string.IsNullOrEmpty(h.MoviePosterUrl) ? _r2Service.GeneratePresignedDownloadUrl(CleanUrl(h.MoviePosterUrl)!) : null 
                 } : null,
                 h.Episode
             }).ToList();
