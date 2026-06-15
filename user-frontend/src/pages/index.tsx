@@ -61,16 +61,92 @@ const Navbar = memo(({ activeTab, onTabChange, user, onLoginClick, onLogoutClick
 
   return (
     <nav className="fixed top-0 w-full z-50 bg-black/20 backdrop-blur-2xl border-b border-white/5">
-      {/* Nội dung Navbar bình thường */}
       <div className="flex justify-between items-center px-8 md:px-16 h-24 max-w-[1600px] mx-auto">
-        <div className="text-[28px] font-bold tracking-tighter text-white">TviEn</div>
-        <div className="hidden md:flex gap-12 text-[11px] tracking-[0.25em] uppercase font-medium text-white/40">
-          <button onClick={() => onTabChange('cinema')} className={`transition ${activeTab === 'cinema' ? 'text-white border-b border-white pb-1' : 'hover:text-white'}`}>Cinema</button>
-          <button onClick={() => onTabChange('series')} className={`transition ${activeTab === 'series' ? 'text-white border-b border-white pb-1' : 'hover:text-white'}`}>Series</button>
-          <button onClick={() => onTabChange('originals')} className={`transition ${activeTab === 'originals' ? 'text-white border-b border-white pb-1' : 'hover:text-white'}`}>Originals</button>
-          <button onClick={() => onTabChange('library')} className={`transition ${activeTab === 'library' ? 'text-white border-b border-white pb-1' : 'hover:text-white'}`}>Library</button>
+
+        {/* Logo */}
+        <div className="text-[28px] font-bold tracking-tighter text-white flex-shrink-0">TviEn</div>
+
+        {/* Phần giữa: Tabs (bình thường) hoặc Search bar (khi expand) */}
+        <div className="hidden md:flex flex-1 justify-center items-center px-12 relative">
+          {/* Tabs — ẩn mượt khi expand */}
+          <div className={`flex gap-12 text-[11px] tracking-[0.25em] uppercase font-medium text-white/40 transition-all duration-400 ${isExpanded ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+            <button onClick={() => onTabChange('cinema')} className={`transition ${activeTab === 'cinema' ? 'text-white border-b border-white pb-1' : 'hover:text-white'}`}>Cinema</button>
+            <button onClick={() => onTabChange('series')} className={`transition ${activeTab === 'series' ? 'text-white border-b border-white pb-1' : 'hover:text-white'}`}>Series</button>
+            <button onClick={() => onTabChange('originals')} className={`transition ${activeTab === 'originals' ? 'text-white border-b border-white pb-1' : 'hover:text-white'}`}>Originals</button>
+            <button onClick={() => onTabChange('library')} className={`transition ${activeTab === 'library' ? 'text-white border-b border-white pb-1' : 'hover:text-white'}`}>Library</button>
+          </div>
+
+          {/* Search bar — hiện mượt khi expand, nằm absolute để che tabs */}
+          <div className={`absolute inset-0 flex items-center transition-all duration-400 ${isExpanded ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+            {/* Icon Filter bên trái */}
+            <div className="relative flex-shrink-0 mr-4 cursor-pointer group">
+              <Filter className="w-4 h-4 text-white/50 group-hover:text-white transition-colors" />
+              <select
+                value=""
+                onChange={(e) => {
+                  if (e.target.value) {
+                    setSearchQuery((prev: string) => prev ? prev.trim() + ', ' + e.target.value : e.target.value);
+                    setTimeout(() => inputRef.current?.focus(), 50);
+                  }
+                }}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              >
+                <option value="" disabled>Lọc theo...</option>
+                <option value="diễn viên: ">Diễn viên</option>
+                <option value="đạo diễn: ">Đạo diễn</option>
+              </select>
+            </div>
+
+            {/* Input */}
+            <input
+              ref={inputRef}
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && searchQuery.trim() !== '') {
+                  setIsExpanded(false);
+                  onSearchSubmit(searchQuery);
+                } else if (e.key === 'Escape') {
+                  setIsExpanded(false);
+                  setSearchQuery('');
+                }
+              }}
+              placeholder="Tìm phim, diễn viên: abc, đạo diễn: xyz..."
+              className="flex-1 bg-transparent outline-none text-white text-sm font-light placeholder-white/30 border-b border-white/30 pb-1 focus:border-white/70 transition-colors duration-300 min-w-0"
+            />
+
+            {/* Clear button */}
+            {searchQuery && (
+              <button
+                onClick={() => { setSearchQuery(''); inputRef.current?.focus(); }}
+                className="text-white/40 hover:text-white transition ml-3 flex-shrink-0"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+
+            {/* Close / thu gọn */}
+            <button
+              onClick={() => { setIsExpanded(false); setSearchQuery(''); }}
+              className="text-white/50 hover:text-white transition ml-3 flex-shrink-0"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-6">
+
+        {/* Phải: Search icon + Sign In / Avatar — LUÔN cố định */}
+        <div className="flex items-center gap-5 flex-shrink-0">
+          {/* Search icon — luôn hiển thị, mờ đi khi đang expand */}
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className={`transition-all duration-300 ${isExpanded ? 'text-white' : 'text-white/60 hover:text-white'}`}
+          >
+            <Search className="w-5 h-5" />
+          </button>
+
+          {/* Sign In / Avatar */}
           {user ? (
             <div className="flex items-center gap-4 group relative">
               {user.avatarUrl ? (
@@ -90,79 +166,12 @@ const Navbar = memo(({ activeTab, onTabChange, user, onLoginClick, onLogoutClick
           ) : (
             <button onClick={onLoginClick} className="text-white/60 hover:text-white transition text-xs font-semibold uppercase tracking-widest bg-white/5 px-4 py-2 rounded-sm border border-white/10 hover:bg-white/10">Sign In</button>
           )}
-          {/* Nút Search - ẩn khi overlay đang hiện */}
-          <button
-            onClick={() => setIsExpanded(true)}
-            className={`text-white/60 hover:text-white transition-all duration-300 ${isExpanded ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
-          >
-            <Search className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
-
-      {/* Search Overlay — phủ toàn bộ navbar khi expanded */}
-      <div
-        className={`absolute inset-0 flex items-center px-8 md:px-16 transition-all duration-500 ease-in-out ${isExpanded ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
-        style={{ background: 'rgba(19,19,19,0.98)', backdropFilter: 'blur(24px)' }}
-      >
-        {/* Icon Filter - bên trái */}
-        <div className="relative flex-shrink-0 mr-5 cursor-pointer group">
-          <Filter className="w-5 h-5 text-white/40 group-hover:text-white/80 transition-colors" />
-          <select
-            value=""
-            onChange={(e) => {
-              if (e.target.value) {
-                setSearchQuery((prev: string) => prev ? prev.trim() + ', ' + e.target.value : e.target.value);
-                setTimeout(() => inputRef.current?.focus(), 50);
-              }
-            }}
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-          >
-            <option value="" disabled>Lọc theo...</option>
-            <option value="diễn viên: ">Diễn viên</option>
-            <option value="đạo diễn: ">Đạo diễn</option>
-          </select>
         </div>
 
-        {/* Ô nhập tìm kiếm */}
-        <input
-          ref={inputRef}
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && searchQuery.trim() !== '') {
-              setIsExpanded(false);
-              onSearchSubmit(searchQuery);
-            } else if (e.key === 'Escape') {
-              setIsExpanded(false);
-              setSearchQuery('');
-            }
-          }}
-          placeholder="Tìm phim, diễn viên: abc, đạo diễn: xyz..."
-          className="flex-1 bg-transparent outline-none text-white text-base md:text-lg font-light placeholder-white/30 border-b border-white/20 pb-1 focus:border-white/60 transition-colors duration-300"
-        />
-
-        {/* Clear + Close */}
-        <div className="flex items-center gap-3 ml-5 flex-shrink-0">
-          {searchQuery && (
-            <button
-              onClick={() => { setSearchQuery(''); inputRef.current?.focus(); }}
-              className="text-white/40 hover:text-white transition"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          )}
-          <button
-            onClick={() => { setIsExpanded(false); setSearchQuery(''); }}
-            className="text-white/60 hover:text-white transition"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
       </div>
     </nav>
   );
+
 });
 Navbar.displayName = 'Navbar';
  
