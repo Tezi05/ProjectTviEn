@@ -358,7 +358,7 @@ export default function CinemaApp() {
               {history.length > 0 && (
                 <section className="mb-24">
                   <h2 className="text-[42px] font-serif font-bold text-white mb-12 tracking-tight">Continue Watching</h2>
-                  <div className="flex gap-6 overflow-x-auto pb-10 hide-scrollbar">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-8">
                     {history.map(h => (
                       <ContinueCard 
                         key={h.historyId} 
@@ -375,8 +375,8 @@ export default function CinemaApp() {
 
               <section className="mb-24">
                 <h2 className="text-[42px] font-serif font-bold text-white mb-12 tracking-tight">New & Noteworthy</h2>
-                <div className="flex gap-6 overflow-x-auto pb-10 hide-scrollbar">
-                  {loading ? [1,2,3,4,5].map(i => <div key={i} className="w-[240px] aspect-[2/3] bg-white/5 animate-pulse rounded-sm" />) :
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-8">
+                  {loading ? [1,2,3,4,5].map(i => <div key={i} className="w-full aspect-[2/3] bg-white/5 animate-pulse rounded-sm" />) :
                     filteredMovies.map(m => <HoverPlayer key={m.id} {...m} />)
                   }
                 </div>
