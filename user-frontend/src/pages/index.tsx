@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, memo } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
-import { Search, User as UserIcon, Play, X, PlayCircle, LogOut } from 'lucide-react';
+import { Search, User as UserIcon, Play, X, PlayCircle, LogOut, Filter } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import AuthModal from '@/components/auth/AuthModal';
  
@@ -493,20 +493,23 @@ export default function CinemaApp() {
                     <X className="w-6 h-6" />
                   </button>
                 )}
-                <select 
-                  value="" 
-                  onChange={(e) => { 
-                    if (e.target.value) {
-                      setSearchQuery(prev => prev ? prev.trim() + ', ' + e.target.value : e.target.value);
-                      setTimeout(() => document.querySelector('input')?.focus(), 50);
-                    }
-                  }}
-                  className="bg-transparent text-white/60 text-lg md:text-2xl outline-none focus:ring-0 ml-4 border-l border-white/20 pl-4 cursor-pointer flex-shrink-0"
-                >
-                  <option value="" className="bg-[#131313]">Bộ lọc...</option>
-                  <option value="diễn viên: " className="bg-[#131313]">Diễn viên</option>
-                  <option value="đạo diễn: " className="bg-[#131313]">Đạo diễn</option>
-                </select>
+                <div className="relative flex items-center ml-4 border-l border-white/20 pl-4 flex-shrink-0 cursor-pointer text-white/60 hover:text-white transition-colors group">
+                  <Filter className="w-5 h-5 md:w-6 md:h-6 mr-2 opacity-70 group-hover:opacity-100 transition-opacity" />
+                  <select 
+                    value="" 
+                    onChange={(e) => { 
+                      if (e.target.value) {
+                        setSearchQuery(prev => prev ? prev.trim() + ', ' + e.target.value : e.target.value);
+                        setTimeout(() => document.querySelector('input')?.focus(), 50);
+                      }
+                    }}
+                    className="bg-transparent text-lg md:text-2xl outline-none focus:ring-0 cursor-pointer appearance-none"
+                  >
+                    <option value="" className="bg-[#131313]">Bộ lọc...</option>
+                    <option value="diễn viên: " className="bg-[#131313]">Diễn viên</option>
+                    <option value="đạo diễn: " className="bg-[#131313]">Đạo diễn</option>
+                  </select>
+                </div>
               </div>
 
               <div className="flex-1">
