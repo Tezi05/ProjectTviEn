@@ -61,6 +61,7 @@ const Navbar = memo(({ activeTab, onTabChange, user, onLoginClick, onLogoutClick
 
   return (
     <nav className="fixed top-0 w-full z-50 bg-black/20 backdrop-blur-2xl border-b border-white/5">
+      {/* Nội dung Navbar bình thường */}
       <div className="flex justify-between items-center px-8 md:px-16 h-24 max-w-[1600px] mx-auto">
         <div className="text-[28px] font-bold tracking-tighter text-white">TviEn</div>
         <div className="hidden md:flex gap-12 text-[11px] tracking-[0.25em] uppercase font-medium text-white/40">
@@ -69,61 +70,7 @@ const Navbar = memo(({ activeTab, onTabChange, user, onLoginClick, onLogoutClick
           <button onClick={() => onTabChange('originals')} className={`transition ${activeTab === 'originals' ? 'text-white border-b border-white pb-1' : 'hover:text-white'}`}>Originals</button>
           <button onClick={() => onTabChange('library')} className={`transition ${activeTab === 'library' ? 'text-white border-b border-white pb-1' : 'hover:text-white'}`}>Library</button>
         </div>
-        <div className="flex items-center gap-2">
-          <div className={`relative flex items-center gap-1 transition-all duration-500 ease-in-out border-b ${isExpanded ? 'w-52 sm:w-72 border-white/60' : 'w-5 border-transparent'}`}>
-            <input 
-              ref={inputRef}
-              type="text" 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  if (searchQuery.trim() !== '') {
-                    onSearchSubmit(searchQuery);
-                  }
-                } else if (e.key === 'Escape') {
-                  setIsExpanded(false);
-                }
-              }}
-              placeholder="Tìm phim, diễn viên: abc..."
-              className={`bg-transparent outline-none text-white text-sm transition-all duration-500 ease-in-out ${isExpanded ? 'w-full opacity-100' : 'w-0 opacity-0'}`}
-              onBlur={() => { if (!searchQuery) setIsExpanded(false); }}
-            />
-            {/* Filter dropdown - chỉ hiện khi expanded */}
-            <div className={`relative flex-shrink-0 transition-all duration-300 ${isExpanded ? 'opacity-100 w-auto' : 'opacity-0 w-0 overflow-hidden'}`}>
-              <div className="relative group cursor-pointer">
-                <Filter className="w-4 h-4 text-white/40 hover:text-white/80 transition-colors" />
-                <select
-                  value=""
-                  onChange={(e) => {
-                    if (e.target.value) {
-                      setSearchQuery((prev: string) => prev ? prev.trim() + ', ' + e.target.value : e.target.value);
-                      setTimeout(() => inputRef.current?.focus(), 50);
-                    }
-                  }}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                >
-                  <option value="" disabled>Lọc theo...</option>
-                  <option value="diễn viên: ">Diễn viên</option>
-                  <option value="đạo diễn: ">Đạo diễn</option>
-                </select>
-              </div>
-            </div>
-            <button 
-              onClick={() => {
-                if (!isExpanded) {
-                  setIsExpanded(true);
-                } else if (searchQuery.trim() !== '') {
-                  onSearchSubmit(searchQuery);
-                } else {
-                  setIsExpanded(false);
-                }
-              }} 
-              className="flex-shrink-0 text-white/60 hover:text-white transition"
-            >
-              <Search className="w-5 h-5" />
-            </button>
-          </div>
+        <div className="flex items-center gap-6">
           {user ? (
             <div className="flex items-center gap-4 group relative">
               {user.avatarUrl ? (
@@ -143,6 +90,75 @@ const Navbar = memo(({ activeTab, onTabChange, user, onLoginClick, onLogoutClick
           ) : (
             <button onClick={onLoginClick} className="text-white/60 hover:text-white transition text-xs font-semibold uppercase tracking-widest bg-white/5 px-4 py-2 rounded-sm border border-white/10 hover:bg-white/10">Sign In</button>
           )}
+          {/* Nút Search - ẩn khi overlay đang hiện */}
+          <button
+            onClick={() => setIsExpanded(true)}
+            className={`text-white/60 hover:text-white transition-all duration-300 ${isExpanded ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+          >
+            <Search className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+
+      {/* Search Overlay — phủ toàn bộ navbar khi expanded */}
+      <div
+        className={`absolute inset-0 flex items-center px-8 md:px-16 transition-all duration-500 ease-in-out ${isExpanded ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+        style={{ background: 'rgba(19,19,19,0.98)', backdropFilter: 'blur(24px)' }}
+      >
+        {/* Icon Filter - bên trái */}
+        <div className="relative flex-shrink-0 mr-5 cursor-pointer group">
+          <Filter className="w-5 h-5 text-white/40 group-hover:text-white/80 transition-colors" />
+          <select
+            value=""
+            onChange={(e) => {
+              if (e.target.value) {
+                setSearchQuery((prev: string) => prev ? prev.trim() + ', ' + e.target.value : e.target.value);
+                setTimeout(() => inputRef.current?.focus(), 50);
+              }
+            }}
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+          >
+            <option value="" disabled>Lọc theo...</option>
+            <option value="diễn viên: ">Diễn viên</option>
+            <option value="đạo diễn: ">Đạo diễn</option>
+          </select>
+        </div>
+
+        {/* Ô nhập tìm kiếm */}
+        <input
+          ref={inputRef}
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && searchQuery.trim() !== '') {
+              setIsExpanded(false);
+              onSearchSubmit(searchQuery);
+            } else if (e.key === 'Escape') {
+              setIsExpanded(false);
+              setSearchQuery('');
+            }
+          }}
+          placeholder="Tìm phim, diễn viên: abc, đạo diễn: xyz..."
+          className="flex-1 bg-transparent outline-none text-white text-base md:text-lg font-light placeholder-white/30 border-b border-white/20 pb-1 focus:border-white/60 transition-colors duration-300"
+        />
+
+        {/* Clear + Close */}
+        <div className="flex items-center gap-3 ml-5 flex-shrink-0">
+          {searchQuery && (
+            <button
+              onClick={() => { setSearchQuery(''); inputRef.current?.focus(); }}
+              className="text-white/40 hover:text-white transition"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+          <button
+            onClick={() => { setIsExpanded(false); setSearchQuery(''); }}
+            className="text-white/60 hover:text-white transition"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
       </div>
     </nav>
