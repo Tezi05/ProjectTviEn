@@ -4,6 +4,7 @@ import { useRouter } from 'next/router';
 import { Search, User as UserIcon, Play, X, PlayCircle, LogOut, Filter } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import AuthModal from '@/components/auth/AuthModal';
+import { Navbar } from '@/components/Navbar';
  
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface Movie {
@@ -17,6 +18,8 @@ interface Movie {
   weeklyViewsResetWeek?: number;
   movieType?: string;
   crews?: { fullName: string, roleId: number }[];
+  ageRating?: string;
+  genres?: string[];
 }
  
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -45,195 +48,15 @@ function normalizeMovie(d: any): Movie {
     weeklyViewsResetWeek: d.weeklyViewsResetWeek ?? d.WeeklyViewsResetWeek ?? 0,
     movieType:            d.movieType        ?? d.MovieType        ?? 'movie',
     crews:                d.crews            ?? d.Crews            ?? [],
+    ageRating:            d.ageRating        ?? d.AgeRating        ?? '',
+    genres:               d.genres           ?? d.Genres           ?? [],
   };
 }
  
-// ─── Navbar (Optimized) ──────────────────────────────────────────────────────
-const Navbar = memo(({ activeTab, onTabChange, user, onLoginClick, onLogoutClick, searchQuery, setSearchQuery, onSearchSubmit, movies = [], uniqueActors = [], uniqueDirectors = [] }: any) => {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (isExpanded && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [isExpanded]);
-
-  return (
-    <nav className="fixed top-0 w-full z-50 bg-black/20 backdrop-blur-2xl border-b border-white/5">
-      <div className="flex justify-between items-center px-8 md:px-16 h-24 max-w-[1600px] mx-auto">
-
-        {/* Logo */}
-        <div className="text-[28px] font-bold tracking-tighter text-white flex-shrink-0">TviEn</div>
-
-        {/* Phần giữa: Tabs (bình thường) hoặc Search bar (khi expand) */}
-        <div className="hidden md:flex flex-1 justify-center items-center px-12 relative">
-          {/* Tabs — ẩn mượt khi expand */}
-          <div className={`flex gap-12 text-[11px] tracking-[0.25em] uppercase font-medium text-white/40 transition-all duration-400 ${isExpanded ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-            <button onClick={() => onTabChange('cinema')} className={`transition ${activeTab === 'cinema' ? 'text-white border-b border-white pb-1' : 'hover:text-white'}`}>Cinema</button>
-            <button onClick={() => onTabChange('series')} className={`transition ${activeTab === 'series' ? 'text-white border-b border-white pb-1' : 'hover:text-white'}`}>Series</button>
-            <button onClick={() => onTabChange('originals')} className={`transition ${activeTab === 'originals' ? 'text-white border-b border-white pb-1' : 'hover:text-white'}`}>Originals</button>
-            <button onClick={() => onTabChange('library')} className={`transition ${activeTab === 'library' ? 'text-white border-b border-white pb-1' : 'hover:text-white'}`}>Library</button>
-          </div>
-
-          {/* Search bar — hiện mượt khi expand, nằm absolute để che tabs */}
-          <div className={`absolute inset-y-0 left-8 right-8 flex items-center transition-all duration-400 ${isExpanded ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
-            {/* Icon Filter bên trái — cùng size với Search icon */}
-            <div className="relative flex-shrink-0 mr-4 cursor-pointer group">
-              <Filter className="w-5 h-5 text-white/50 group-hover:text-white transition-colors" />
-              <select
-                value=""
-                onChange={(e) => {
-                  if (e.target.value) {
-                    setSearchQuery((prev: string) => prev ? prev.trim() + ', ' + e.target.value : e.target.value);
-                    setTimeout(() => inputRef.current?.focus(), 50);
-                  }
-                }}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-              >
-                <option value="diễn viên: ">Diễn viên</option>
-                <option value="đạo diễn: ">Đạo diễn</option>
-              </select>
-            </div>
-
-            {/* Input */}
-            <input
-              ref={inputRef}
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && searchQuery.trim() !== '') {
-                  setIsExpanded(false);
-                  onSearchSubmit(searchQuery);
-                } else if (e.key === 'Escape') {
-                  setIsExpanded(false);
-                  setSearchQuery('');
-                }
-              }}
-              placeholder="Tìm phim, diễn viên: abc, đạo diễn: xyz..."
-              className="flex-1 bg-transparent outline-none text-white text-sm font-light placeholder-white/30 border-b border-white/30 pb-1 focus:border-white/70 transition-colors duration-300 min-w-0"
-            />
-
-            {/* Clear button */}
-            {searchQuery && (
-              <button
-                onClick={() => { setSearchQuery(''); inputRef.current?.focus(); }}
-                className="text-white/40 hover:text-white transition ml-3 flex-shrink-0"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
-
-
-          </div>
-
-          {/* Suggestions Dropdown — Chỉ hiển thị khi đang expand và có từ khóa tìm kiếm */}
-          {isExpanded && searchQuery.trim() !== '' && (() => {
-            const segments = searchQuery.split(',');
-            const lastSegment = segments[segments.length - 1].trimStart();
-            
-            const isActorSearch = lastSegment.toLowerCase().startsWith('diễn viên:');
-            const isDirectorSearch = lastSegment.toLowerCase().startsWith('đạo diễn:');
-            
-            const searchTerm = isActorSearch ? lastSegment.substring('diễn viên:'.length).trim().toLowerCase() :
-                               isDirectorSearch ? lastSegment.substring('đạo diễn:'.length).trim().toLowerCase() :
-                               lastSegment.toLowerCase();
-                               
-            let suggestions: { type: string, label: string, filter: string }[] = [];
-            
-            if (!isActorSearch && !isDirectorSearch) {
-              movies.filter((m: any) => m.title.toLowerCase().includes(searchTerm) || m.description?.toLowerCase().includes(searchTerm)).slice(0, 3).forEach((m: any) => {
-                suggestions.push({ type: 'Phim', label: m.title, filter: 'movie' });
-              });
-            }
-            
-            if (!isDirectorSearch) {
-              uniqueActors.filter((a: any) => a.toLowerCase().includes(searchTerm)).slice(0, 3).forEach((a: any) => {
-                suggestions.push({ type: 'Diễn viên', label: a, filter: 'actor' });
-              });
-            }
-            
-            if (!isActorSearch) {
-              uniqueDirectors.filter((d: any) => d.toLowerCase().includes(searchTerm)).slice(0, 3).forEach((d: any) => {
-                suggestions.push({ type: 'Đạo diễn', label: d, filter: 'director' });
-              });
-            }
-
-            if (suggestions.length === 0) return null;
-
-            return (
-              <div className="absolute top-[76px] left-8 right-8 bg-[#131313]/95 backdrop-blur-xl border border-white/10 rounded-sm p-2 shadow-2xl flex flex-col gap-1 z-50 max-h-[280px] overflow-y-auto hide-scrollbar">
-                <div className="px-3 py-1.5 text-[9px] uppercase tracking-[0.15em] font-semibold text-white/30 border-b border-white/5 mb-1">Gợi ý tìm kiếm</div>
-                {suggestions.map((s, idx) => (
-                  <button 
-                    key={idx}
-                    onClick={() => {
-                      const newSegments = [...segments];
-                      let completedText = '';
-                      if (s.filter === 'movie') completedText = s.label;
-                      else if (s.filter === 'actor') completedText = 'diễn viên: ' + s.label;
-                      else if (s.filter === 'director') completedText = 'đạo diễn: ' + s.label;
-                      
-                      newSegments[newSegments.length - 1] = ' ' + completedText;
-                      setSearchQuery(newSegments.join(',').trimStart() + ', ');
-                      setTimeout(() => inputRef.current?.focus(), 50);
-                    }}
-                    className="text-left px-3 py-2 hover:bg-white/5 transition rounded-sm text-white/80 text-xs flex items-center gap-3 w-full"
-                  >
-                    <span className="text-[9px] uppercase tracking-wider font-bold text-white/40 bg-white/5 px-2 py-0.5 rounded-sm min-w-[80px] text-center">{s.type}</span>
-                    <span className="font-light truncate">{s.label}</span>
-                  </button>
-                ))}
-              </div>
-            );
-          })()}
-        </div>
-
-        {/* Phải: Search icon + Sign In / Avatar — LUÔN cố định */}
-        <div className="flex items-center gap-5 flex-shrink-0">
-          {/* Search icon ↔ X toggle nhau tại cùng vị trí */}
-          <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="text-white/60 hover:text-white transition-all duration-300"
-          >
-            {isExpanded
-              ? <X className="w-5 h-5" />
-              : <Search className="w-5 h-5" />
-            }
-          </button>
-
-          {/* Sign In / Avatar */}
-          {user ? (
-            <div className="flex items-center gap-4 group relative">
-              {user.avatarUrl ? (
-                <img src={user.avatarUrl} alt="Avatar" className="w-8 h-8 rounded-full border border-white/10" />
-              ) : (
-                <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center border border-white/10">
-                  <UserIcon className="w-4 h-4 text-white/60" />
-                </div>
-              )}
-              <div className="hidden group-hover:flex absolute top-full right-0 mt-2 bg-[#131313] border border-white/10 rounded-sm p-2 flex-col gap-2 shadow-2xl min-w-[150px] before:absolute before:content-[''] before:-top-2 before:left-0 before:right-0 before:h-2">
-                <div className="px-3 py-2 text-white text-xs border-b border-white/10">{user.displayName}</div>
-                <button onClick={onLogoutClick} className="flex items-center gap-2 px-3 py-2 text-white/60 hover:text-white hover:bg-white/5 transition text-xs text-left w-full rounded-sm">
-                  <LogOut className="w-4 h-4" /> Đăng xuất
-                </button>
-              </div>
-            </div>
-          ) : (
-            <button onClick={onLoginClick} className="text-white/60 hover:text-white transition text-xs font-semibold uppercase tracking-widest bg-white/5 px-4 py-2 rounded-sm border border-white/10 hover:bg-white/10">Sign In</button>
-          )}
-        </div>
-
-      </div>
-    </nav>
-  );
-
-});
-Navbar.displayName = 'Navbar';
  
 // ─── HoverPlayer (Super Optimized - Lazy Video) ───────────────────────────────
-const HoverPlayer = memo(({ id, slug, title, posterUrl }: Movie) => {
+const HoverPlayer = memo(({ id, slug, title, posterUrl, description }: Movie) => {
   const router = useRouter();
   const [isHovered, setIsHovered] = useState(false);
   const previewUrl = `${WORKER_URL}/video/${id}/preview.mp4`;
@@ -264,9 +87,14 @@ const HoverPlayer = memo(({ id, slug, title, posterUrl }: Movie) => {
         className={`absolute inset-0 w-full h-full object-cover z-10 transition-all duration-700 ${isHovered ? 'opacity-0 scale-105' : 'opacity-100'}`} 
       />
       
-      <div className="absolute inset-0 group-hover:bg-black/20 transition-colors z-20" />
-      <div className="absolute bottom-0 left-0 w-full p-6 z-30 transform translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 bg-gradient-to-t from-black/80 to-transparent">
-        <span className="text-white text-xs font-bold uppercase tracking-widest truncate block">{title}</span>
+      {/* Khung nội dung bao trùm toàn bộ thẻ (từ trên xuống), hiển thị khi hover */}
+      <div className="absolute inset-0 p-5 z-30 flex flex-col justify-start gap-2.5 transform translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 bg-black/60 backdrop-blur-[1px] rounded-sm">
+        <span className="text-white text-xs font-bold uppercase tracking-widest block border-b border-white/10 pb-1.5 truncate" title={title}>{title}</span>
+        {description && (
+          <p className="text-[10px] text-white/80 font-light line-clamp-[17] leading-relaxed overflow-hidden">
+            {description}
+          </p>
+        )}
       </div>
     </div>
   );
@@ -449,7 +277,7 @@ export default function CinemaApp() {
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-8">
                       {watchlist.map(w => (
                         <div key={w.watchlistId} className="transform hover:scale-105 transition-transform duration-300">
-                          <HoverPlayer id={w.movie.id} slug={w.movie.slug} title={w.movie.title} posterUrl={w.movie.posterUrl} />
+                          <HoverPlayer id={w.movie.id} slug={w.movie.slug} title={w.movie.title} posterUrl={w.movie.posterUrl} description={w.movie.description} />
                         </div>
                       ))}
                     </div>
@@ -463,7 +291,7 @@ export default function CinemaApp() {
                       <p className="text-white/30 text-lg font-light tracking-wide">Bạn chưa xem bộ phim nào.</p>
                     </div>
                   ) : (
-                    <div className="flex gap-6 overflow-x-auto pb-10 hide-scrollbar">
+                    <div className="flex gap-10 overflow-x-auto pb-10 hide-scrollbar">
                       {history.map(h => (
                         <ContinueCard 
                           key={h.historyId} 
@@ -480,71 +308,82 @@ export default function CinemaApp() {
               </>
             )}
           </main>
-        ) : urlSearchQuery ? (
-          <main className="w-full max-w-[1600px] mx-auto px-8 md:px-16 pt-32 min-h-[70vh]">
-            <div className="mb-12">
-              <button onClick={() => { setSearchQuery(''); router.push('/', undefined, { shallow: true }); }} className="text-white/40 hover:text-white flex items-center gap-2 mb-8 transition-colors text-sm uppercase tracking-widest">
-                <X className="w-4 h-4"/> Xóa tìm kiếm
-              </button>
-              <h1 className="text-[42px] font-serif font-bold text-white tracking-tight">
-                Kết quả tìm kiếm cho "{urlSearchQuery}"
-              </h1>
-              <p className="text-white/40 mt-2">
-                Tìm thấy {(() => {
-                  const isMatch = (m: Movie, q: string) => {
-                    if (!q.trim()) return true;
-                    const segments = q.split(',').map(s => s.trim()).filter(Boolean);
-                    const actors: string[] = []; const directors: string[] = []; const titles: string[] = [];
-                    segments.forEach(seg => {
-                        if (seg.toLowerCase().startsWith('diễn viên:')) actors.push(seg.substring('diễn viên:'.length).trim().toLowerCase());
-                        else if (seg.toLowerCase().startsWith('đạo diễn:')) directors.push(seg.substring('đạo diễn:'.length).trim().toLowerCase());
-                        else titles.push(seg.toLowerCase());
-                    });
-                    if (actors.length > 0 && !actors.every(a => m.crews?.some(c => c.roleId === 2 && c.fullName.toLowerCase().includes(a)))) return false;
-                    if (directors.length > 0 && !directors.every(d => m.crews?.some(c => c.roleId === 1 && c.fullName.toLowerCase().includes(d)))) return false;
-                    if (titles.length > 0 && !titles.every(t => m.title.toLowerCase().includes(t) || m.description?.toLowerCase().includes(t))) return false;
-                    return true;
-                  };
-                  return movies.filter(m => isMatch(m, urlSearchQuery)).length;
-                })()} phim
-              </p>
-            </div>
-            
-            {(() => {
-              const isMatch = (m: Movie, q: string) => {
-                if (!q.trim()) return true;
-                const segments = q.split(',').map(s => s.trim()).filter(Boolean);
-                const actors: string[] = []; const directors: string[] = []; const titles: string[] = [];
-                segments.forEach(seg => {
-                    if (seg.toLowerCase().startsWith('diễn viên:')) actors.push(seg.substring('diễn viên:'.length).trim().toLowerCase());
-                    else if (seg.toLowerCase().startsWith('đạo diễn:')) directors.push(seg.substring('đạo diễn:'.length).trim().toLowerCase());
-                    else titles.push(seg.toLowerCase());
-                });
-                if (actors.length > 0 && !actors.every(a => m.crews?.some(c => c.roleId === 2 && c.fullName.toLowerCase().includes(a)))) return false;
-                if (directors.length > 0 && !directors.every(d => m.crews?.some(c => c.roleId === 1 && c.fullName.toLowerCase().includes(d)))) return false;
-                if (titles.length > 0 && !titles.every(t => m.title.toLowerCase().includes(t) || m.description?.toLowerCase().includes(t))) return false;
-                return true;
-              };
-              const results = movies.filter(m => isMatch(m, urlSearchQuery));
+        ) : urlSearchQuery ? (() => {
+          const isMatch = (m: Movie, q: string) => {
+            if (!q.trim()) return true;
+            const segments = q.split(',').map(s => s.trim()).filter(Boolean);
+            const actors: string[] = []; 
+            const directors: string[] = []; 
+            const years: string[] = []; 
+            const genres: string[] = []; 
+            const ages: string[] = []; 
+            const types: string[] = []; 
+            const titles: string[] = [];
+
+            segments.forEach(seg => {
+                const lower = seg.toLowerCase();
+                if (lower.startsWith('diễn viên:')) actors.push(seg.substring('diễn viên:'.length).trim().toLowerCase());
+                else if (lower.startsWith('đạo diễn:')) directors.push(seg.substring('đạo diễn:'.length).trim().toLowerCase());
+                else if (lower.startsWith('năm:')) years.push(seg.substring('năm:'.length).trim().toLowerCase());
+                else if (lower.startsWith('thể loại:')) genres.push(seg.substring('thể loại:'.length).trim().toLowerCase());
+                else if (lower.startsWith('độ tuổi:')) ages.push(seg.substring('độ tuổi:'.length).trim().toLowerCase());
+                else if (['g', 'pg', 'pg-13', 'r', 'nc-17'].includes(lower)) ages.push(lower);
+                else if (['blockbuster', 'indie'].includes(lower)) types.push(lower);
+                else titles.push(lower);
+            });
+
+            if (actors.length > 0 && !actors.every(a => m.crews?.some(c => c.roleId === 2 && c.fullName.toLowerCase().includes(a)))) return false;
+            if (directors.length > 0 && !directors.every(d => m.crews?.some(c => c.roleId === 1 && c.fullName.toLowerCase().includes(d)))) return false;
+            if (years.length > 0 && !years.every(y => m.releaseYear?.toString().includes(y))) return false;
+            if (genres.length > 0 && !genres.every(g => 
+              m.genres?.some(mg => mg.toLowerCase() === g) || 
+              m.title.toLowerCase().includes(g) || 
+              m.description?.toLowerCase().includes(g)
+            )) return false;
+            if (ages.length > 0 && !ages.every(a => m.ageRating?.toLowerCase().includes(a))) return false;
+            if (types.length > 0 && !types.every(t => {
+              if (t === 'blockbuster') return (m.weeklyViews || 0) > 5 || (m.weeklyViewsResetWeek || 0) > 0;
+              if (t === 'indie') return (m.weeklyViews || 0) <= 5;
+              return true;
+            })) return false;
+            if (titles.length > 0 && !titles.every(t => 
+              m.title.toLowerCase().includes(t) || 
+              m.description?.toLowerCase().includes(t) ||
+              m.crews?.some(c => c.fullName.toLowerCase().includes(t)) ||
+              m.releaseYear?.toString().includes(t)
+            )) return false;
+            return true;
+          };
+          const results = movies.filter(m => isMatch(m, urlSearchQuery));
+
+          return (
+            <main className="w-full max-w-[1600px] mx-auto px-8 md:px-16 pt-32 min-h-[70vh]">
+              <div className="mb-12">
+                <button onClick={() => { setSearchQuery(''); router.push('/', undefined, { shallow: true }); }} className="text-white/40 hover:text-white flex items-center gap-2 mb-8 transition-colors text-sm uppercase tracking-widest">
+                  <X className="w-4 h-4"/> Xóa tìm kiếm
+                </button>
+                <h1 className="text-[42px] font-serif font-bold text-white tracking-tight">
+                  Kết quả tìm kiếm cho "{urlSearchQuery}"
+                </h1>
+                <p className="text-white/40 mt-2">
+                  Tìm thấy {results.length} phim
+                </p>
+              </div>
               
-              if (results.length === 0) {
-                return (
-                  <div className="py-20 text-center border border-dashed border-white/5 rounded-sm bg-white/[0.01]">
-                    <p className="text-white/30 text-lg font-light tracking-wide">Không tìm thấy phim nào phù hợp.</p>
-                  </div>
-                );
-              }
-              
-              return (
+              {results.length === 0 ? (
+                <div className="py-20 text-center border border-dashed border-white/5 rounded-sm bg-white/[0.01]">
+                  <p className="text-white/30 text-lg font-light tracking-wide">Không tìm thấy phim nào phù hợp.</p>
+                </div>
+              ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-8">
                   {results.map(m => (
                     <HoverPlayer key={m.id} {...m} />
                   ))}
                 </div>
-              );
-            })()}
-          </main>
-        ) : (
+              )}
+            </main>
+          );
+        })() : (
           <>
             {/* Hero */}
             <header className="relative w-full h-[90vh] min-h-[700px] flex items-end overflow-hidden">
@@ -568,7 +407,7 @@ export default function CinemaApp() {
               {history.length > 0 && (
                 <section className="mb-24">
                   <h2 className="text-[42px] font-serif font-bold text-white mb-12 tracking-tight">Continue Watching</h2>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-8">
+                  <div className="flex gap-10 overflow-x-auto pb-10 hide-scrollbar">
                     {history.map(h => (
                       <ContinueCard 
                         key={h.historyId} 

@@ -48,7 +48,9 @@ namespace ProjectTviEn.Controllers.Admin
                 m.ViewCount, 
                 m.Status, 
                 m.UpdatedAt,
-                Crews = m.MovieCrews.Select(c => new { c.Person.FullName, c.RoleId }).ToList()
+                m.Type,
+                Crews = m.MovieCrews.Select(c => new { c.Person.FullName, c.RoleId }).ToList(),
+                Genres = m.MovieGenres.Select(g => g.Genre.Name).ToList()
             }).ToListAsync();
 
             var movies = moviesRaw.Select(m => new {
@@ -66,6 +68,8 @@ namespace ProjectTviEn.Controllers.Admin
                 m.Status,
                 m.UpdatedAt,
                 m.Crews,
+                m.Genres,
+                MovieType = m.Type == MovieType.TvSeries ? "series" : "movie",
                 JobStatus = _context.IngestJobs.Where(j => j.MovieId == m.Id).OrderByDescending(j => j.CreatedAt).Select(j => new { j.Status, j.Logs, j.FinishedAt }).FirstOrDefault()
             }).ToList();
 

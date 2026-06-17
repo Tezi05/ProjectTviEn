@@ -2,13 +2,44 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Hls from 'hls.js';
-import { ChevronLeft, RotateCcw, RotateCw, Settings, Maximize, Play, Pause, Volume2, VolumeX, Bookmark, Star, Send } from 'lucide-react';
+import { RotateCcw, RotateCw, Settings, Maximize, Play, Pause, Volume2, VolumeX, Bookmark, Star, Send } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { Navbar } from '@/components/Navbar';
+import AuthModal from '@/components/auth/AuthModal';
+
+interface Movie {
+  id: string;
+  title: string;
+  slug: string;
+  posterUrl?: string;
+  description?: string;
+  releaseYear?: number;
+  weeklyViews?: number;
+  weeklyViewsResetWeek?: number;
+  movieType?: string;
+  crews?: { fullName: string, roleId: number }[];
+}
+
+function normalizeMovie(d: any): Movie {
+  const url = d.posterUrl ?? d.PosterUrl;
+  return {
+    id:                   d.id               ?? d.Id               ?? '',
+    title:                d.title            ?? d.Title            ?? 'Untitled',
+    slug:                 d.slug             ?? d.Slug             ?? '',
+    description:          d.description      ?? d.Description      ?? '',
+    posterUrl:            url || undefined,
+    releaseYear:          d.releaseYear      ?? d.ReleaseYear      ?? 2024,
+    weeklyViews:          d.weeklyViews      ?? d.WeeklyViews      ?? 0,
+    weeklyViewsResetWeek: d.weeklyViewsResetWeek ?? d.WeeklyViewsResetWeek ?? 0,
+    movieType:            d.movieType        ?? d.MovieType        ?? 'movie',
+    crews:                d.crews            ?? d.Crews            ?? [],
+  };
+}
 
 export default function WatchPage() {
   const router = useRouter();
   const { slug } = router.query;
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -16,6 +47,29 @@ export default function WatchPage() {
   
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
+  // States for search and auth in Navbar
+  const [movies, setMovies] = useState<Movie[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+
+  const uniqueActors = React.useMemo(() => Array.from(new Set(movies.flatMap(m => m.crews?.filter(c => c.roleId === 2).map(c => c.fullName) || []))), [movies]);
+  const uniqueDirectors = React.useMemo(() => Array.from(new Set(movies.flatMap(m => m.crews?.filter(c => c.roleId === 1).map(c => c.fullName) || []))), [movies]);
+
+  // Fetch all movies for Navbar suggestions
+  useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5113/api'}/admin/Movies?t=${Date.now()}`)
+      .then(res => res.json())
+      .then(data => {
+        let list = Array.isArray(data) ? data : (Object.values(data).find(v => Array.isArray(v)) as any[]) || [];
+        setMovies(list.map(normalizeMovie));
+      })
+      .catch(console.error);
+  }, []);
+
+  const onSearchSubmit = (q: string) => {
+    router.push(`/?q=${encodeURIComponent(q.trim())}`);
+  };
   
   // Player state
   const [isPlaying, setIsPlaying] = useState(false);
@@ -255,8 +309,23 @@ export default function WatchPage() {
   };
 
   const toggleFullScreen = () => {
-    if (containerRef.current?.requestFullscreen) containerRef.current.requestFullscreen();
-    else if ((containerRef.current as any).webkitRequestFullscreen) (containerRef.current as any).webkitRequestFullscreen();
+    const doc = document as any;
+    const isFullScreen = doc.fullscreenElement || doc.webkitFullscreenElement || doc.mozFullScreenElement || doc.msFullscreenElement;
+
+    if (isFullScreen) {
+      if (document.exitFullscreen) document.exitFullscreen();
+      else if (doc.webkitExitFullscreen) doc.webkitExitFullscreen();
+      else if (doc.mozCancelFullScreen) doc.mozCancelFullScreen();
+      else if (doc.msExitFullscreen) doc.msExitFullscreen();
+    } else {
+      const container = containerRef.current as any;
+      if (container) {
+        if (container.requestFullscreen) container.requestFullscreen();
+        else if (container.webkitRequestFullscreen) container.webkitRequestFullscreen();
+        else if (container.mozRequestFullScreen) container.mozRequestFullScreen();
+        else if (container.msRequestFullscreen) container.msRequestFullscreen();
+      }
+    }
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-black text-white">Đang tải...</div>;
@@ -264,16 +333,17 @@ export default function WatchPage() {
   return (
     <div className="watch-page font-sans bg-[#0a0a0a] min-h-screen">
       <Head>
-        <title>{data?.title}</title>
+        <title>{data?.title} — TviEn</title>
         <style>{`
           /* Custom styles for the player to coexist with normal scrollable layout */
-          .player-wrapper { height: 100vh; width: 100vw; display: flex; align-items: center; justify-content: center; position: relative; background: #000; }
-          .page-header { position: absolute; top: 30px; left: 30px; display: flex; align-items: center; gap: 20px; z-index: 100; opacity: 1; }
-          .back-btn { background: rgba(255,255,255,0.1); border: none; color: #fff; padding: 10px; border-radius: 50%; cursor: pointer; backdrop-filter: blur(10px); transition: 0.2s; }
-          .back-btn:hover { background: rgba(255,255,255,0.2); transform: scale(1.1); }
-          .movie-name { font-size: 24px; font-weight: 800; color: #fff; text-shadow: 0 4px 15px rgba(0,0,0,1); }
-
-          .video-container { position: relative; width: 100vw; height: 100vh; max-width: none; border-radius: 0; background: #000; overflow: hidden; }
+          .player-wrapper { width: 100%; position: relative; background: transparent; padding-top: 130px; margin-bottom: 20px; }
+          
+          .video-container { position: relative; width: 100%; aspect-ratio: 16/9; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05); background: #000; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7); }
+          .video-container:fullscreen { border-radius: 0; border: none; aspect-ratio: auto; width: 100vw; height: 100vh; }
+          .video-container:-webkit-full-screen { border-radius: 0; border: none; aspect-ratio: auto; width: 100vw; height: 100vh; }
+          .video-container:-moz-full-screen { border-radius: 0; border: none; aspect-ratio: auto; width: 100vw; height: 100vh; }
+          .video-container:-ms-fullscreen { border-radius: 0; border: none; aspect-ratio: auto; width: 100vw; height: 100vh; }
+          
           video { width: 100%; height: 100%; object-fit: contain; }
 
           /* 3 Vùng Tương Tác */
@@ -308,12 +378,21 @@ export default function WatchPage() {
         `}</style>
       </Head>
 
-      <div className="player-wrapper">
-        <div className="page-header">
-          <button onClick={() => router.push('/')} className="back-btn"><ChevronLeft size={24}/></button>
-          <span className="movie-name">{data?.title}</span>
-        </div>
+      <Navbar 
+        activeTab=""
+        onTabChange={(tab: string) => router.push(`/?tab=${tab}`)}
+        user={user}
+        onLoginClick={() => setAuthModalOpen(true)}
+        onLogoutClick={logout}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        onSearchSubmit={onSearchSubmit}
+        movies={movies}
+        uniqueActors={uniqueActors}
+        uniqueDirectors={uniqueDirectors}
+      />
 
+      <div className="player-wrapper max-w-[1200px] mx-auto px-8">
         <div 
           ref={containerRef} 
           className="video-container" 
@@ -487,6 +566,8 @@ export default function WatchPage() {
           </div>
         </div>
       </div>
+
+      <AuthModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} />
     </div>
   );
 }
