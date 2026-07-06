@@ -237,13 +237,14 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
               <div className="flex-1 h-px bg-white/10"></div>
             </div>
 
-            <div className="flex justify-center w-full [&>div]:w-full [&_iframe]:!w-full [&>div>div]:!w-full">
+            <div className="flex justify-center w-full">
               <GoogleLogin
                 onSuccess={handleGoogleSuccess}
                 onError={() => setError('Đăng nhập Google thất bại.')}
+                type="icon"
                 theme="filled_black"
-                shape="rectangular"
-                width="100%"
+                shape="circle"
+                size="large"
               />
             </div>
           </>

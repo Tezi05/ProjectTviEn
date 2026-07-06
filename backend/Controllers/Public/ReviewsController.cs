@@ -21,7 +21,7 @@ namespace ProjectTviEn.Controllers.Public
                 .Include(r => r.User)
                 .OrderByDescending(r => r.CreatedAt)
                 .Select(r => new {
-                    r.ReviewId, r.Rating, r.Content, r.CreatedAt,
+                    r.ReviewId, r.Rating, r.Content, r.CreatedAt, r.UserId,
                     User = new { r.User!.DisplayName, r.User!.AvatarUrl }
                 })
                 .ToListAsync();
@@ -32,10 +32,17 @@ namespace ProjectTviEn.Controllers.Public
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] Review review)
         {
-            var exists = await _db.Reviews
-                .AnyAsync(r => r.UserId == review.UserId && r.MovieId == review.MovieId);
+            var existingReview = await _db.Reviews
+                .FirstOrDefaultAsync(r => r.UserId == review.UserId && r.MovieId == review.MovieId);
 
-            if (exists) return Conflict("You already reviewed this movie");
+            if (existingReview != null)
+            {
+                existingReview.Rating = review.Rating;
+                existingReview.Content = review.Content;
+                existingReview.UpdatedAt = DateTime.UtcNow;
+                await _db.SaveChangesAsync();
+                return Ok(existingReview);
+            }
 
             review.CreatedAt = DateTime.UtcNow;
             review.UpdatedAt = DateTime.UtcNow;
