@@ -92,8 +92,10 @@ export const Navbar = memo(({ activeTab, onTabChange, user, onLoginClick, onLogo
     .filter((s: string) => s.toLowerCase().startsWith('thể loại:'))
     .map((s: string) => s.substring('thể loại:'.length).trim().toLowerCase());
 
-  const activeAge = segments.find((s: string) => ['g', 'pg', 'pg-13', 'r', 'nc-17'].includes(s.toLowerCase()));
-  const activeType = segments.find((s: string) => ['blockbuster', 'indie'].includes(s.toLowerCase()));
+  const activeAgeSegment = segments.find((s: string) => s.toLowerCase().startsWith('độ tuổi:'));
+  const activeAge = activeAgeSegment ? activeAgeSegment.substring('độ tuổi:'.length).trim() : null;
+  const activeTypeSegment = segments.find((s: string) => s.toLowerCase().startsWith('phân loại:'));
+  const activeType = activeTypeSegment ? activeTypeSegment.substring('phân loại:'.length).trim() : null;
 
   // Dynamic values extracted from the database movies list
   const dbYears = Array.from(new Set<string>(movies.map((m: any) => m.releaseYear?.toString()).filter(Boolean)))
@@ -128,8 +130,8 @@ export const Navbar = memo(({ activeTab, onTabChange, user, onLoginClick, onLogo
         const lower = seg.toLowerCase();
         if (type === 'năm' && lower.startsWith('năm:')) return false;
         if (type === 'thể loại' && lower.startsWith('thể loại:')) return false;
-        if (type === 'độ tuổi' && ['g', 'pg', 'pg-13', 'r', 'nc-17'].includes(lower)) return false;
-        if (type === 'phân loại' && ['blockbuster', 'indie'].includes(lower)) return false;
+        if (type === 'độ tuổi' && lower.startsWith('độ tuổi:')) return false;
+        if (type === 'phân loại' && lower.startsWith('phân loại:')) return false;
         return true;
       });
       setTempSearchQuery(newSegments.join(', '));
@@ -161,14 +163,14 @@ export const Navbar = memo(({ activeTab, onTabChange, user, onLoginClick, onLogo
           }
           return false;
         }
-        if (type === 'độ tuổi' && ['g', 'pg', 'pg-13', 'r', 'nc-17'].includes(lower)) {
-          if (lower === value.toLowerCase()) {
+        if (type === 'độ tuổi' && lower.startsWith('độ tuổi:')) {
+          if (lower === `độ tuổi: ${value}`.toLowerCase()) {
             alreadyActive = true;
           }
           return false;
         }
-        if (type === 'phân loại' && ['blockbuster', 'indie'].includes(lower)) {
-          if (lower === value.toLowerCase()) {
+        if (type === 'phân loại' && lower.startsWith('phân loại:')) {
+          if (lower === `phân loại: ${value}`.toLowerCase()) {
             alreadyActive = true;
           }
           return false;
@@ -178,8 +180,8 @@ export const Navbar = memo(({ activeTab, onTabChange, user, onLoginClick, onLogo
 
       if (!alreadyActive) {
         if (type === 'năm') newSegments.push(`năm: ${value}`);
-        else if (type === 'độ tuổi') newSegments.push(value);
-        else if (type === 'phân loại') newSegments.push(value);
+        else if (type === 'độ tuổi') newSegments.push(`độ tuổi: ${value}`);
+        else if (type === 'phân loại') newSegments.push(`phân loại: ${value}`);
       }
       
       setTempSearchQuery(newSegments.join(', '));
@@ -197,25 +199,27 @@ export const Navbar = memo(({ activeTab, onTabChange, user, onLoginClick, onLogo
         <div className="hidden md:flex flex-1 justify-center items-center px-12 relative">
           {/* Tabs — ẩn mượt khi expand */}
           <div className={`flex gap-12 text-[11px] tracking-[0.25em] uppercase font-medium text-white/40 transition-all duration-400 ${isExpanded ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-            <button onClick={() => onTabChange && onTabChange('cinema')} className={`transition ${activeTab === 'cinema' ? 'text-white border-b border-white pb-1' : 'hover:text-white'}`}>Cinema</button>
-            <button onClick={() => onTabChange && onTabChange('series')} className={`transition ${activeTab === 'series' ? 'text-white border-b border-white pb-1' : 'hover:text-white'}`}>Series</button>
-            <button onClick={() => onTabChange && onTabChange('originals')} className={`transition ${activeTab === 'originals' ? 'text-white border-b border-white pb-1' : 'hover:text-white'}`}>Originals</button>
-            <button onClick={() => onTabChange && onTabChange('library')} className={`transition ${activeTab === 'library' ? 'text-white border-b border-white pb-1' : 'hover:text-white'}`}>Library</button>
+            <button onClick={() => onTabChange && onTabChange('trangchu')} className={`transition ${activeTab === 'trangchu' ? 'text-white border-b border-white pb-1' : 'hover:text-white'}`}>Trang chủ</button>
+            <button onClick={() => onTabChange && onTabChange('tvseries')} className={`transition ${activeTab === 'tvseries' ? 'text-white border-b border-white pb-1' : 'hover:text-white'}`}>TVSeries</button>
+            <button onClick={() => onTabChange && onTabChange('phimdoclap')} className={`transition ${activeTab === 'phimdoclap' ? 'text-white border-b border-white pb-1' : 'hover:text-white'}`}>Phim độc lập</button>
+            <button onClick={() => onTabChange && onTabChange('phimthuongmai')} className={`transition ${activeTab === 'phimthuongmai' ? 'text-white border-b border-white pb-1' : 'hover:text-white'}`}>Phim thương mại</button>
             <button 
               ref={filterBtnRef}
               onClick={(e) => {
                 e.preventDefault();
                 setShowFiltersPanel(!showFiltersPanel);
               }} 
-              className={`transition relative ${activeTab === 'Filters' || showFiltersPanel ? 'text-white border-b border-white pb-1' : 'hover:text-white'}`}
+              className={`transition relative ${activeTab === 'locphim' || showFiltersPanel ? 'text-white border-b border-white pb-1' : 'hover:text-white'}`}
             >
-              Filters
+              Lọc phim
             </button>
+            <button onClick={() => onTabChange && onTabChange('thuvien')} className={`transition ${activeTab === 'thuvien' ? 'text-white border-b border-white pb-1' : 'hover:text-white'}`}>Thư viện</button>
+            
           </div>
 
           {/* Search bar — hiện mượt khi expand, nằm absolute để che tabs */}
-          <div className={`absolute inset-y-0 left-8 right-8 flex items-center transition-all duration-400 border-b border-white/30 pb-1 focus-within:border-white/70 ${isExpanded ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
-            {/* Icon Filter bên trái — cùng size với Search icon */}
+          <div className={`absolute inset-y-0 left-8 right-8 flex items-center transition-all duration-400 ${isExpanded ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+            {/* Icon Search bên trái — thay thế Filter */}
             <button
               type="button"
               onMouseDown={(e) => {
@@ -223,9 +227,9 @@ export const Navbar = memo(({ activeTab, onTabChange, user, onLoginClick, onLogo
                 setIsExpanded(true);
                 setTimeout(() => inputRef.current?.focus(), 50);
               }}
-              className="relative flex-shrink-0 mr-4 cursor-pointer group text-white/50 hover:text-white transition-colors"
+              className="relative flex-shrink-0 mr-4 cursor-pointer group text-white/40 hover:text-white transition-colors"
             >
-              <Filter className="w-5 h-5" />
+              <Search className="w-5 h-5" strokeWidth={1.5} />
             </button>
 
             {/* Input */}
@@ -246,6 +250,21 @@ export const Navbar = memo(({ activeTab, onTabChange, user, onLoginClick, onLogo
               placeholder="Tìm phim, diễn viên: abc, đạo diễn: xyz..."
               className="flex-1 bg-transparent outline-none text-white text-sm font-light placeholder-white/30 transition-colors duration-300 min-w-0"
             />
+
+            {/* Nút tìm kiếm (bên phải) */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                if (searchQuery.trim() !== '') {
+                  setIsExpanded(false);
+                  onSearchSubmit(searchQuery);
+                }
+              }}
+              className="flex-shrink-0 ml-4 px-4 py-1.5 bg-white/10 hover:bg-white text-white hover:text-black rounded-sm transition-colors text-[10px] font-bold tracking-widest uppercase border border-white/20 hover:border-transparent"
+            >
+              Tìm
+            </button>
           </div>
 
           {/* Suggestions Dropdown — Hiển thị khi đang expand */}
@@ -266,14 +285,14 @@ export const Navbar = memo(({ activeTab, onTabChange, user, onLoginClick, onLogo
 
             // Trạng thái: Ô tìm kiếm trống -> Hiển thị Bộ lọc Thông minh & Phổ biến
             if (searchQuery.trim() === '') {
-              const popularGenres = ['Sci-Fi', 'Mystery', 'Thriller', 'Action', 'Cyberpunk', 'Horror', 'Drama', 'Psychological'];
+              const popularGenres = displayedGenres.slice(0, 8);
               
               return (
-                <div className="absolute top-[42px] left-8 right-8 bg-[#0c0c0e]/95 backdrop-blur-3xl border border-cyan-500/10 rounded-md p-4 shadow-[0_15px_50px_rgba(6,182,212,0.15)] flex flex-col gap-4 z-50 max-h-[380px] overflow-y-auto hide-scrollbar transition-all duration-300">
+                <div className="absolute top-[42px] left-8 right-8 bg-[#0c0c0e]/95 backdrop-blur-3xl border border-white/10 rounded-md p-4 shadow-[0_15px_50px_rgba(255,255,255,0.05)] flex flex-col gap-4 z-50 max-h-[380px] overflow-y-auto hide-scrollbar transition-all duration-300">
                   {/* Hướng dẫn cú pháp tìm kiếm */}
                   <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] font-semibold text-cyan-400">
-                      <Sparkles className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
+                    <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] font-semibold text-white">
+                      <Sparkles className="w-3.5 h-3.5 text-white animate-pulse" />
                       <span>Bộ lọc Thông minh & Tìm kiếm Nâng cao</span>
                     </div>
                     <p className="text-[11px] text-white/40 leading-relaxed font-light">
@@ -289,9 +308,9 @@ export const Navbar = memo(({ activeTab, onTabChange, user, onLoginClick, onLogo
                         setSearchQuery('diễn viên: ');
                         setTimeout(() => inputRef.current?.focus(), 50);
                       }}
-                      className="flex items-center gap-2 px-3 py-2 bg-white/[0.02] hover:bg-purple-500/10 border border-white/5 hover:border-purple-500/30 rounded-sm text-left transition-all duration-300 text-xs text-white/70 hover:text-white group"
+                      className="flex items-center gap-2 px-3 py-2 bg-white/[0.02] hover:bg-white/10 border border-white/5 hover:border-white/30 rounded-sm text-left transition-all duration-300 text-xs text-white/70 hover:text-white group"
                     >
-                      <UserIcon className="w-3.5 h-3.5 text-purple-400 group-hover:scale-110 transition-transform" />
+                      <UserIcon className="w-3.5 h-3.5 text-white group-hover:scale-110 transition-transform" />
                       <div className="flex flex-col">
                         <span className="text-[9px] uppercase tracking-wider font-semibold text-white/40">Diễn viên</span>
                         <span className="font-mono text-[10px]">diễn viên:</span>
@@ -304,9 +323,9 @@ export const Navbar = memo(({ activeTab, onTabChange, user, onLoginClick, onLogo
                         setSearchQuery('đạo diễn: ');
                         setTimeout(() => inputRef.current?.focus(), 50);
                       }}
-                      className="flex items-center gap-2 px-3 py-2 bg-white/[0.02] hover:bg-cyan-500/10 border border-white/5 hover:border-cyan-500/30 rounded-sm text-left transition-all duration-300 text-xs text-white/70 hover:text-white group"
+                      className="flex items-center gap-2 px-3 py-2 bg-white/[0.02] hover:bg-white/10 border border-white/5 hover:border-white/30 rounded-sm text-left transition-all duration-300 text-xs text-white/70 hover:text-white group"
                     >
-                      <Video className="w-3.5 h-3.5 text-cyan-400 group-hover:scale-110 transition-transform" />
+                      <Video className="w-3.5 h-3.5 text-white group-hover:scale-110 transition-transform" />
                       <div className="flex flex-col">
                         <span className="text-[9px] uppercase tracking-wider font-semibold text-white/40">Đạo diễn</span>
                         <span className="font-mono text-[10px]">đạo diễn:</span>
@@ -319,9 +338,9 @@ export const Navbar = memo(({ activeTab, onTabChange, user, onLoginClick, onLogo
                         setSearchQuery('thể loại: ');
                         setTimeout(() => inputRef.current?.focus(), 50);
                       }}
-                      className="flex items-center gap-2 px-3 py-2 bg-white/[0.02] hover:bg-pink-500/10 border border-white/5 hover:border-pink-500/30 rounded-sm text-left transition-all duration-300 text-xs text-white/70 hover:text-white group"
+                      className="flex items-center gap-2 px-3 py-2 bg-white/[0.02] hover:bg-white/10 border border-white/5 hover:border-white/30 rounded-sm text-left transition-all duration-300 text-xs text-white/70 hover:text-white group"
                     >
-                      <Film className="w-3.5 h-3.5 text-pink-400 group-hover:scale-110 transition-transform" />
+                      <Film className="w-3.5 h-3.5 text-white group-hover:scale-110 transition-transform" />
                       <div className="flex flex-col">
                         <span className="text-[9px] uppercase tracking-wider font-semibold text-white/40">Thể loại</span>
                         <span className="font-mono text-[10px]">thể loại:</span>
@@ -334,9 +353,9 @@ export const Navbar = memo(({ activeTab, onTabChange, user, onLoginClick, onLogo
                         setSearchQuery('năm: ');
                         setTimeout(() => inputRef.current?.focus(), 50);
                       }}
-                      className="flex items-center gap-2 px-3 py-2 bg-white/[0.02] hover:bg-amber-500/10 border border-white/5 hover:border-amber-500/30 rounded-sm text-left transition-all duration-300 text-xs text-white/70 hover:text-white group"
+                      className="flex items-center gap-2 px-3 py-2 bg-white/[0.02] hover:bg-white/10 border border-white/5 hover:border-white/30 rounded-sm text-left transition-all duration-300 text-xs text-white/70 hover:text-white group"
                     >
-                      <Calendar className="w-3.5 h-3.5 text-amber-400 group-hover:scale-110 transition-transform" />
+                      <Calendar className="w-3.5 h-3.5 text-white group-hover:scale-110 transition-transform" />
                       <div className="flex flex-col">
                         <span className="text-[9px] uppercase tracking-wider font-semibold text-white/40">Năm</span>
                         <span className="font-mono text-[10px]">năm:</span>
@@ -360,7 +379,7 @@ export const Navbar = memo(({ activeTab, onTabChange, user, onLoginClick, onLogo
                             });
                             setTimeout(() => inputRef.current?.focus(), 50);
                           }}
-                          className="text-[10px] font-medium tracking-wide bg-white/5 hover:bg-cyan-500/20 text-white/70 hover:text-white px-3 py-1 rounded transition-all duration-200 border border-white/5 hover:border-cyan-500/30"
+                          className="text-[10px] font-medium tracking-wide bg-white/5 hover:bg-white text-white/70 hover:text-black px-3 py-1 rounded transition-all duration-200 border border-white/5 hover:border-white/30"
                         >
                           {cat}
                         </button>
@@ -386,7 +405,7 @@ export const Navbar = memo(({ activeTab, onTabChange, user, onLoginClick, onLogo
                                 });
                                 setTimeout(() => inputRef.current?.focus(), 50);
                               }}
-                              className="text-[10px] font-light bg-white/5 hover:bg-purple-500/20 text-white/60 hover:text-white px-2 py-0.5 rounded transition-all duration-150 border border-white/5 hover:border-purple-500/30"
+                              className="text-[10px] font-light bg-white/5 hover:bg-white text-white/60 hover:text-black px-2 py-0.5 rounded transition-all duration-150 border border-white/5 hover:border-white/30"
                             >
                               {actor}
                             </button>
@@ -411,7 +430,7 @@ export const Navbar = memo(({ activeTab, onTabChange, user, onLoginClick, onLogo
                                 });
                                 setTimeout(() => inputRef.current?.focus(), 50);
                               }}
-                              className="text-[10px] font-light bg-white/5 hover:bg-amber-500/20 text-white/60 hover:text-white px-2 py-0.5 rounded transition-all duration-150 border border-white/5 hover:border-amber-500/30"
+                              className="text-[10px] font-light bg-white/5 hover:bg-white text-white/60 hover:text-black px-2 py-0.5 rounded transition-all duration-150 border border-white/5 hover:border-white/30"
                             >
                               {dir}
                             </button>
@@ -437,7 +456,7 @@ export const Navbar = memo(({ activeTab, onTabChange, user, onLoginClick, onLogo
               uniqueDirectors.filter((d: any) => d.toLowerCase().includes(searchTerm)).slice(0, 3).forEach((d: any) => {
                 suggestions.push({ type: 'Đạo diễn', label: d, filter: 'director' });
               });
-              const popularGenres = ['Sci-Fi', 'Mystery', 'Thriller', 'Action', 'Cyberpunk', 'Horror', 'Drama', 'Psychological'];
+              const popularGenres = displayedGenres.slice(0, 8);
               popularGenres.filter((g: any) => g.toLowerCase().includes(searchTerm)).slice(0, 3).forEach((g: any) => {
                 suggestions.push({ type: 'Thể loại', label: g, filter: 'genre' });
               });
@@ -454,7 +473,7 @@ export const Navbar = memo(({ activeTab, onTabChange, user, onLoginClick, onLogo
                 suggestions.push({ type: 'Đạo diễn', label: d, filter: 'director' });
               });
             } else if (isGenreSearch) {
-              const popularGenres = ['Sci-Fi', 'Mystery', 'Thriller', 'Action', 'Cyberpunk', 'Horror', 'Drama', 'Psychological'];
+              const popularGenres = displayedGenres.slice(0, 8);
               popularGenres.filter((g: any) => g.toLowerCase().includes(searchTerm)).slice(0, 5).forEach((g: any) => {
                 suggestions.push({ type: 'Thể loại', label: g, filter: 'genre' });
               });
@@ -468,14 +487,14 @@ export const Navbar = memo(({ activeTab, onTabChange, user, onLoginClick, onLogo
             if (suggestions.length === 0) return null;
 
             return (
-              <div className="absolute top-[42px] left-8 right-8 bg-[#0c0c0e]/95 backdrop-blur-3xl border border-cyan-500/10 rounded-md p-4 shadow-[0_15px_50px_rgba(6,182,212,0.15)] flex flex-col gap-4 z-50">
+              <div className="absolute top-[42px] left-8 right-8 bg-[#0c0c0e]/95 backdrop-blur-3xl border border-white/10 rounded-md p-4 shadow-[0_15px_50px_rgba(255,255,255,0.05)] flex flex-col gap-4 z-50">
                 
                 {/* Phần trên (Ảnh 3): Hướng dẫn cú pháp và Nút lọc nhanh */}
                 <div className="flex flex-col gap-4 border-b border-white/5 pb-4">
                   {/* Hướng dẫn cú pháp tìm kiếm */}
                   <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] font-semibold text-cyan-400">
-                      <Sparkles className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
+                    <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] font-semibold text-white">
+                      <Sparkles className="w-3.5 h-3.5 text-white animate-pulse" />
                       <span>Bộ lọc Thông minh & Tìm kiếm Nâng cao</span>
                     </div>
                     <p className="text-[11px] text-white/40 leading-relaxed font-light">
@@ -495,9 +514,9 @@ export const Navbar = memo(({ activeTab, onTabChange, user, onLoginClick, onLogo
                         });
                         setTimeout(() => inputRef.current?.focus(), 50);
                       }}
-                      className="flex items-center gap-2 px-3 py-2 bg-white/[0.02] hover:bg-purple-500/10 border border-white/5 hover:border-purple-500/30 rounded-sm text-left transition-all duration-300 text-xs text-white/70 hover:text-white group"
+                      className="flex items-center gap-2 px-3 py-2 bg-white/[0.02] hover:bg-white/10 border border-white/5 hover:border-white/30 rounded-sm text-left transition-all duration-300 text-xs text-white/70 hover:text-white group"
                     >
-                      <UserIcon className="w-3.5 h-3.5 text-purple-400 group-hover:scale-110 transition-transform" />
+                      <UserIcon className="w-3.5 h-3.5 text-white group-hover:scale-110 transition-transform" />
                       <div className="flex flex-col">
                         <span className="text-[9px] uppercase tracking-wider font-semibold text-white/40">Diễn viên</span>
                         <span className="font-mono text-[10px]">diễn viên:</span>
@@ -514,9 +533,9 @@ export const Navbar = memo(({ activeTab, onTabChange, user, onLoginClick, onLogo
                         });
                         setTimeout(() => inputRef.current?.focus(), 50);
                       }}
-                      className="flex items-center gap-2 px-3 py-2 bg-white/[0.02] hover:bg-cyan-500/10 border border-white/5 hover:border-cyan-500/30 rounded-sm text-left transition-all duration-300 text-xs text-white/70 hover:text-white group"
+                      className="flex items-center gap-2 px-3 py-2 bg-white/[0.02] hover:bg-white/10 border border-white/5 hover:border-white/30 rounded-sm text-left transition-all duration-300 text-xs text-white/70 hover:text-white group"
                     >
-                      <Video className="w-3.5 h-3.5 text-cyan-400 group-hover:scale-110 transition-transform" />
+                      <Video className="w-3.5 h-3.5 text-white group-hover:scale-110 transition-transform" />
                       <div className="flex flex-col">
                         <span className="text-[9px] uppercase tracking-wider font-semibold text-white/40">Đạo diễn</span>
                         <span className="font-mono text-[10px]">đạo diễn:</span>
@@ -533,9 +552,9 @@ export const Navbar = memo(({ activeTab, onTabChange, user, onLoginClick, onLogo
                         });
                         setTimeout(() => inputRef.current?.focus(), 50);
                       }}
-                      className="flex items-center gap-2 px-3 py-2 bg-white/[0.02] hover:bg-pink-500/10 border border-white/5 hover:border-pink-500/30 rounded-sm text-left transition-all duration-300 text-xs text-white/70 hover:text-white group"
+                      className="flex items-center gap-2 px-3 py-2 bg-white/[0.02] hover:bg-white/10 border border-white/5 hover:border-white/30 rounded-sm text-left transition-all duration-300 text-xs text-white/70 hover:text-white group"
                     >
-                      <Film className="w-3.5 h-3.5 text-pink-400 group-hover:scale-110 transition-transform" />
+                      <Film className="w-3.5 h-3.5 text-white group-hover:scale-110 transition-transform" />
                       <div className="flex flex-col">
                         <span className="text-[9px] uppercase tracking-wider font-semibold text-white/40">Thể loại</span>
                         <span className="font-mono text-[10px]">thể loại:</span>
@@ -552,9 +571,9 @@ export const Navbar = memo(({ activeTab, onTabChange, user, onLoginClick, onLogo
                         });
                         setTimeout(() => inputRef.current?.focus(), 50);
                       }}
-                      className="flex items-center gap-2 px-3 py-2 bg-white/[0.02] hover:bg-amber-500/10 border border-white/5 hover:border-amber-500/30 rounded-sm text-left transition-all duration-300 text-xs text-white/70 hover:text-white group"
+                      className="flex items-center gap-2 px-3 py-2 bg-white/[0.02] hover:bg-white/10 border border-white/5 hover:border-white/30 rounded-sm text-left transition-all duration-300 text-xs text-white/70 hover:text-white group"
                     >
-                      <Calendar className="w-3.5 h-3.5 text-amber-400 group-hover:scale-110 transition-transform" />
+                      <Calendar className="w-3.5 h-3.5 text-white group-hover:scale-110 transition-transform" />
                       <div className="flex flex-col">
                         <span className="text-[9px] uppercase tracking-wider font-semibold text-white/40">Năm</span>
                         <span className="font-mono text-[10px]">năm:</span>
@@ -571,19 +590,19 @@ export const Navbar = memo(({ activeTab, onTabChange, user, onLoginClick, onLogo
                   </div>
                   <div className="flex flex-col gap-1 max-h-[220px] overflow-y-auto hide-scrollbar pr-1">
                     {suggestions.map((s, idx) => {
-                      let badgeStyle = "text-cyan-400 bg-cyan-400/10 border-cyan-400/20";
+                      let badgeStyle = "text-white/70 border-white/20 bg-transparent";
                       let Icon = Film;
                       if (s.filter === 'actor') {
-                        badgeStyle = "text-purple-400 bg-purple-400/10 border-purple-400/20";
+                        badgeStyle = "text-white/70 border-white/20 bg-transparent";
                         Icon = UserIcon;
                       } else if (s.filter === 'director') {
-                        badgeStyle = "text-amber-400 bg-amber-400/10 border-amber-400/20";
+                        badgeStyle = "text-white/70 border-white/20 bg-transparent";
                         Icon = Video;
                       } else if (s.filter === 'genre') {
-                        badgeStyle = "text-pink-400 bg-pink-400/10 border-pink-400/20";
+                        badgeStyle = "text-white/70 border-white/20 bg-transparent";
                         Icon = Film;
                       } else if (s.filter === 'year') {
-                        badgeStyle = "text-teal-400 bg-teal-400/10 border-teal-400/20";
+                        badgeStyle = "text-white/70 border-white/20 bg-transparent";
                         Icon = Calendar;
                       }
 
@@ -678,7 +697,7 @@ export const Navbar = memo(({ activeTab, onTabChange, user, onLoginClick, onLogo
                   onClick={() => toggleFilter('năm')}
                   className={`text-[10px] font-light px-2.5 py-0.5 rounded transition-all duration-150 border ${
                     !activeYear 
-                      ? 'bg-cyan-500/20 text-white border-cyan-500/30' 
+                      ? 'bg-white text-black font-semibold border-white' 
                       : 'bg-white/5 text-white/50 hover:text-white border-white/5 hover:border-white/10'
                   }`}
                 >
@@ -692,7 +711,7 @@ export const Navbar = memo(({ activeTab, onTabChange, user, onLoginClick, onLogo
                       onClick={() => toggleFilter('năm', y)}
                       className={`text-[10px] font-light px-2.5 py-0.5 rounded transition-all duration-150 border ${
                         isActive 
-                          ? 'bg-cyan-500/20 text-white border-cyan-500/30' 
+                          ? 'bg-white text-black font-semibold border-white' 
                           : 'bg-white/5 text-white/50 hover:text-white border-white/5 hover:border-white/10'
                       }`}
                     >
@@ -712,7 +731,7 @@ export const Navbar = memo(({ activeTab, onTabChange, user, onLoginClick, onLogo
                   onClick={() => toggleFilter('độ tuổi')}
                   className={`text-[10px] font-light px-2.5 py-0.5 rounded transition-all duration-150 border ${
                     !activeAge 
-                      ? 'bg-purple-500/20 text-white border-purple-500/30' 
+                      ? 'bg-white text-black font-semibold border-white' 
                       : 'bg-white/5 text-white/50 hover:text-white border-white/5 hover:border-white/10'
                   }`}
                 >
@@ -726,7 +745,7 @@ export const Navbar = memo(({ activeTab, onTabChange, user, onLoginClick, onLogo
                       onClick={() => toggleFilter('độ tuổi', a.code)}
                       className={`text-[10px] font-light px-2.5 py-0.5 rounded transition-all duration-150 border ${
                         isActive 
-                          ? 'bg-purple-500/20 text-white border-purple-500/30' 
+                          ? 'bg-white text-black font-semibold border-white' 
                           : 'bg-white/5 text-white/50 hover:text-white border-white/5 hover:border-white/10'
                       }`}
                       title={a.desc}
@@ -747,7 +766,7 @@ export const Navbar = memo(({ activeTab, onTabChange, user, onLoginClick, onLogo
                   onClick={() => toggleFilter('thể loại')}
                   className={`text-[10px] font-light px-2.5 py-0.5 rounded transition-all duration-150 border ${
                     activeGenres.length === 0 
-                      ? 'bg-pink-500/20 text-white border-pink-500/30' 
+                      ? 'bg-white text-black font-semibold border-white' 
                       : 'bg-white/5 text-white/50 hover:text-white border-white/5 hover:border-white/10'
                   }`}
                 >
@@ -761,7 +780,7 @@ export const Navbar = memo(({ activeTab, onTabChange, user, onLoginClick, onLogo
                       onClick={() => toggleFilter('thể loại', g)}
                       className={`text-[10px] font-light px-2.5 py-0.5 rounded transition-all duration-150 border ${
                         isActive 
-                          ? 'bg-pink-500/20 text-white border-pink-500/30' 
+                          ? 'bg-white text-black font-semibold border-white' 
                           : 'bg-white/5 text-white/50 hover:text-white border-white/5 hover:border-white/10'
                       }`}
                     >
@@ -781,7 +800,7 @@ export const Navbar = memo(({ activeTab, onTabChange, user, onLoginClick, onLogo
                   onClick={() => toggleFilter('phân loại')}
                   className={`text-[10px] font-light px-2.5 py-0.5 rounded transition-all duration-150 border ${
                     !activeType 
-                      ? 'bg-amber-500/20 text-white border-amber-500/30' 
+                      ? 'bg-white text-black font-semibold border-white' 
                       : 'bg-white/5 text-white/50 hover:text-white border-white/5 hover:border-white/10'
                   }`}
                 >
@@ -798,7 +817,7 @@ export const Navbar = memo(({ activeTab, onTabChange, user, onLoginClick, onLogo
                       onClick={() => toggleFilter('phân loại', t.query)}
                       className={`text-[10px] font-light px-2.5 py-0.5 rounded transition-all duration-150 border ${
                         isActive 
-                          ? 'bg-amber-500/20 text-white border-amber-500/30' 
+                          ? 'bg-white text-black font-semibold border-white' 
                           : 'bg-white/5 text-white/50 hover:text-white border-white/5 hover:border-white/10'
                       }`}
                     >
@@ -827,7 +846,7 @@ export const Navbar = memo(({ activeTab, onTabChange, user, onLoginClick, onLogo
                   onSearchSubmit(tempSearchQuery);
                   setShowFiltersPanel(false);
                 }}
-                className="text-[10px] uppercase tracking-widest font-bold px-8 py-2.5 rounded-sm bg-cyan-500 hover:bg-cyan-400 text-black shadow-[0_0_20px_rgba(6,182,212,0.4)] transition-all duration-200 hover:scale-[1.02]"
+                className="text-[10px] uppercase tracking-widest font-bold px-8 py-2.5 rounded-sm bg-white hover:bg-white/80 text-black shadow-[0_0_20px_rgba(255,255,255,0.2)] transition-all duration-200 hover:scale-[1.02]"
               >
                 Áp dụng bộ lọc
               </button>

@@ -14,6 +14,7 @@ namespace ProjectTviEn.DTOs
         public string? AgeRating { get; set; }
         public int Status { get; set; }
         public MovieType Type { get; set; } = MovieType.SingleMovie; // Phân loại: SingleMovie=1, TvSeries=2
+        public bool IsIndie { get; set; } = false;
         public string? PosterUrl { get; set; }
         public string? BackdropUrl { get; set; }
         public string? TrailerUrl { get; set; }

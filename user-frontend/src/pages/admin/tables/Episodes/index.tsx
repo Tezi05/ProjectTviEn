@@ -7,21 +7,40 @@ export default function EpisodesTable({ fetchStats }: any) {
   const [view, setView] = useState<'list' | 'editor'>('list');
   const [editingItem, setEditingItem] = useState<any>(null);
   const [trashView, setTrashView] = useState(false);
-  const [data, setData] = useState<any[]>([]);
+  
+  // Data states
+  const [episodesData, setEpisodesData] = useState<any[]>([]);
+  const [moviesData, setMoviesData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Nested view state
+  const [selectedMovie, setSelectedMovie] = useState<any>(null);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/admin/system/tables/Episodes?isDeleted=${trashView}`);
-      if (res.ok) setData(await res.json());
-      else setError("Không thể tải danh sách tập phim");
+      if (!selectedMovie) {
+        // Cấp 1: Tải danh sách phim (chỉ lấy Phim Bộ)
+        const res = await fetch(`${API_BASE}/admin/system/tables/Movies?isDeleted=${trashView}`);
+        if (res.ok) {
+          const mData = await res.json();
+          // Filter out only TV Series (Type === 2 or 'TvSeries')
+          setMoviesData(mData.filter((m: any) => m.type === 2 || m.type === 'TvSeries'));
+        } else setError("Không thể tải danh sách phim");
+      } else {
+        // Cấp 2: Tải danh sách tập phim của phim đã chọn
+        const res = await fetch(`${API_BASE}/admin/system/tables/Episodes?isDeleted=${trashView}`);
+        if (res.ok) {
+          const eData = await res.json();
+          setEpisodesData(eData.filter((e: any) => e.movieId === selectedMovie.movieId || e.movieId === selectedMovie.id));
+        } else setError("Không thể tải danh sách tập phim");
+      }
     } catch (err: any) { setError(err.message); }
     finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchData(); }, [trashView]);
+  useEffect(() => { fetchData(); }, [trashView, selectedMovie]);
 
   const handleDelete = async (item: any) => {
     const id = item.episodeId || item.id;
@@ -49,18 +68,59 @@ export default function EpisodesTable({ fetchStats }: any) {
     />;
   }
 
+  // Cấp 1: Danh sách Phim Bộ
+  if (!selectedMovie) {
+    return (
+      <GenericListView 
+        title="TV Series (Quản lý Tập)"
+        data={moviesData}
+        loading={loading}
+        error={error}
+        trashView={trashView}
+        onTabChange={setTrashView}
+        customActions={(item: any) => (
+          <button 
+            onClick={() => { setSelectedMovie(item); setTrashView(false); }} 
+            className="p-1.5 hover:bg-blue-500/10 rounded text-neutral-500 hover:text-blue-400 transition-all text-[10px] font-black uppercase tracking-widest flex items-center gap-1"
+          >
+            <span className="material-symbols-outlined !text-[18px]">format_list_numbered</span>
+            Quản lý Tập
+          </button>
+        )}
+      />
+    );
+  }
+
+  // Cấp 2: Danh sách Tập Phim
   return (
-    <GenericListView 
-      title="Episodes"
-      data={data}
-      loading={loading}
-      error={error}
-      trashView={trashView}
-      onTabChange={setTrashView}
-      onAdd={() => { setEditingItem(null); setView('editor'); }}
-      onEdit={(item: any) => { setEditingItem(item); setView('editor'); }}
-      onDelete={handleDelete}
-      onRestore={handleRestore}
-    />
+    <div className="space-y-6">
+      <button 
+        onClick={() => { setSelectedMovie(null); setTrashView(false); }}
+        className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-500 hover:text-white flex items-center gap-2 transition-colors"
+      >
+        <span className="material-symbols-outlined !text-[14px]">arrow_back</span>
+        Quay lại danh sách Phim Bộ
+      </button>
+      
+      <GenericListView 
+        title={`Episodes: ${selectedMovie.title}`}
+        data={episodesData}
+        loading={loading}
+        error={error}
+        trashView={trashView}
+        onTabChange={setTrashView}
+        onAdd={() => { 
+          // Truyền sẵn thông tin phim vào EpisodeForm
+          setEditingItem({ 
+            movieId: selectedMovie.movieId || selectedMovie.id, 
+            movieTitle: selectedMovie.title 
+          }); 
+          setView('editor'); 
+        }}
+        onEdit={(item: any) => { setEditingItem(item); setView('editor'); }}
+        onDelete={handleDelete}
+        onRestore={handleRestore}
+      />
+    </div>
   );
 }

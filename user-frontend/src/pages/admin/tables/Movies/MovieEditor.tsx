@@ -5,7 +5,12 @@ import { AddModal, Field, inp, sel, tex, lbl, toSlug } from '../../components/Sh
 export default function MovieEditor({ movie, onCancel, onSaved }: any) {
   const isEdit = !!movie;
   const [activeTab, setActiveTab] = useState<'info' | 'video'>('info');
-  const [formData, setFormData] = useState<any>(movie || { movieId: '', title: '', originalTitle: '', slug: '', description: '', releaseYear: 2024, duration: 0, ageRating: 'P', status: 0, genreIds: [], crewMembers: [] });
+  const [formData, setFormData] = useState<any>(() => {
+    if (movie) {
+      return { ...movie, isIndie: movie.isIndie ?? false };
+    }
+    return { movieId: '', title: '', originalTitle: '', slug: '', description: '', releaseYear: 2024, duration: 0, ageRating: 'P', status: 0, isIndie: false, genreIds: [], crewMembers: [] };
+  });
   const [isSlugLocked, setIsSlugLocked] = useState(isEdit);
   const [allGenres, setAllGenres] = useState<any[]>([]);
   const [allPersons, setAllPersons] = useState<any[]>([]);
@@ -234,34 +239,59 @@ export default function MovieEditor({ movie, onCancel, onSaved }: any) {
               </div>
 
               {/* LOẠI TÁC PHẨM — Tách riêng hàng để nổi bật */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-10 p-6 bg-black/40 border border-neutral-900 rounded-sm">
-                <div className="space-y-3">
-                  <label className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Loại tác phẩm *</label>
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Loại tác phẩm *</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-10 p-6 bg-black/40 border border-neutral-900 rounded-sm items-center">
                   <div className="flex gap-3">
                     {[
-                      { value: 1, label: '🎬 Phim Lẻ', sub: 'SingleMovie — Video gắn trực tiếp' },
-                      { value: 2, label: '📺 Phim Bộ', sub: 'TvSeries — Quản lý qua Mùa & Tập' },
+                      { value: 1, label: 'Phim Lẻ'},
+                      { value: 2, label: 'Phim Bộ'},
                     ].map(opt => (
                       <button
                         key={opt.value}
                         type="button"
                         onClick={() => setFormData({...formData, type: opt.value})}
-                        className={`flex-1 p-4 border rounded-sm text-left transition-all ${(formData.type ?? 1) === opt.value ? 'bg-white text-black border-white' : 'bg-transparent border-neutral-800 text-neutral-500 hover:border-neutral-600 hover:text-neutral-300'}`}
+                        className={`flex-1 p-4 border rounded-sm text-left transition-all ${(formData.type ?? 1) === opt.value ? 'bg-white text-black border-white' : 'bg-transparent border-neutral-800 text-neutral-500 hover:border-neutral-700 hover:text-white'}`}
                       >
                         <div className="text-sm font-black">{opt.label}</div>
-                        <div className="text-[9px] opacity-60 mt-1 font-bold uppercase tracking-wide">{opt.sub}</div>
                       </button>
                     ))}
                   </div>
-                </div>
-                <div className="space-y-3 flex flex-col justify-center">
-                  <div className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-sm inline-block ${(formData.type ?? 1) === 2 ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-green-500/10 text-green-400 border border-green-500/20'}`}>
+                  <div className="text-[10px] font-black uppercase tracking-widest px-4 py-4 rounded-sm bg-neutral-900 text-neutral-400 border border-neutral-800">
                     {(formData.type ?? 1) === 2
-                      ? '📺 Series: Bạn cần tạo Mùa → Tập → Upload Video'
-                      : '🎬 Movie: Upload Video trực tiếp vào phim này'}
+                      ? 'Series: Bạn cần tạo Mùa → Tập → Upload Video'
+                      : 'Movie: Upload Video trực tiếp vào phim này'}
                   </div>
                 </div>
               </div>
+              
+              {/* PHÂN LOẠI PHIM (THƯƠNG MẠI / ĐỘC LẬP) */}
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Phân loại phim *</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-10 p-6 bg-black/40 border border-neutral-900 rounded-sm items-center">
+                  <div className="flex gap-3">
+                    {[
+                      { value: false, label: 'Thương mại' },
+                      { value: true, label: 'Độc lập' },
+                    ].map(opt => (
+                      <button
+                        key={opt.label}
+                        type="button"
+                        onClick={() => setFormData({...formData, isIndie: opt.value})}
+                        className={`flex-1 p-4 border rounded-sm text-left transition-all ${(formData.isIndie ?? false) === opt.value ? 'bg-white text-black border-white' : 'bg-transparent border-neutral-800 text-neutral-500 hover:border-neutral-700 hover:text-white'}`}
+                      >
+                        <div className="text-sm font-black">{opt.label}</div>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="text-[10px] font-black uppercase tracking-widest px-4 py-4 rounded-sm bg-neutral-900 text-neutral-400 border border-neutral-800">
+                    {(formData.isIndie ?? false)
+                      ? 'Phim Độc Lập: Phim mang tính nghệ thuật cao'
+                      : 'Phim Thương Mại: Phim mang tính giải trí cao'}
+                  </div>
+                </div>
+              </div>
+
               <div className="space-y-3">
                 <label className="text-[10px] font-black text-neutral-500 uppercase tracking-widest flex justify-between"><span>Slug (SEO URL)</span><button onClick={() => setIsSlugLocked(!isSlugLocked)} className="text-[9px] border border-neutral-800 px-3 py-1 rounded hover:bg-white hover:text-black transition-all uppercase">{isSlugLocked ? 'Unlock' : 'Lock'}</button></label>
                 <input readOnly={isSlugLocked} className={`w-full bg-black border border-neutral-800 h-14 px-6 text-base outline-none transition-all font-mono ${isSlugLocked ? 'text-neutral-600 cursor-not-allowed' : 'text-primary border-neutral-600'}`} value={formData.slug || ''} onChange={e => setFormData({...formData, slug: toSlug(e.target.value)})} />

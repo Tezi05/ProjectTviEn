@@ -83,36 +83,46 @@ namespace ProjectTviEn.Controllers.Admin
         [HttpDelete("tables/{tableName}/{id}")]
         public async Task<IActionResult> DeleteRow(string tableName, string id)
         {
-            var property = typeof(AppDbContext).GetProperty(tableName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
-            if (property == null) return NotFound();
+            try {
+                var property = typeof(AppDbContext).GetProperty(tableName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+                if (property == null) return NotFound();
 
-            var entityType = property.PropertyType.GetGenericArguments()[0];
-            
-            object? entity = null;
-            if (int.TryParse(id, out int intId)) {
-                entity = await _context.FindAsync(entityType, intId);
-            } else if (Guid.TryParse(id, out Guid guidId)) {
-                entity = await _context.FindAsync(entityType, guidId);
-            } else {
-                entity = await _context.FindAsync(entityType, id);
+                var entityType = property.PropertyType.GetGenericArguments()[0];
+                var keyProperty = _context.Model.FindEntityType(entityType)?.FindPrimaryKey()?.Properties.FirstOrDefault();
+                if (keyProperty == null) return NotFound();
+
+                object? parsedId = null;
+                if (keyProperty.ClrType == typeof(int) && int.TryParse(id, out int intId)) {
+                    parsedId = intId;
+                } else if (keyProperty.ClrType == typeof(Guid) && Guid.TryParse(id, out Guid guidId)) {
+                    parsedId = guidId;
+                } else if (keyProperty.ClrType == typeof(string)) {
+                    parsedId = id;
+                } else {
+                    return BadRequest("Unsupported key type");
+                }
+
+                var entity = await _context.FindAsync(entityType, parsedId);
+
+                if (entity == null) return NotFound();
+
+                // Thực hiện Xóa mềm nếu thực thể hỗ trợ ISoftDelete
+                if (entity is ISoftDelete softDeleteEntity)
+                {
+                    softDeleteEntity.IsDeleted = true;
+                    _context.Update(softDeleteEntity);
+                }
+                else
+                {
+                    // Nếu bảng không hỗ trợ xóa mềm, xóa vĩnh viễn
+                    _context.Remove(entity);
+                }
+
+                await _context.SaveChangesAsync();
+                return Ok();
+            } catch (Exception ex) {
+                return StatusCode(500, new { error = ex.Message, inner = ex.InnerException?.Message, stack = ex.StackTrace });
             }
-
-            if (entity == null) return NotFound();
-
-            // Thực hiện Xóa mềm nếu thực thể hỗ trợ ISoftDelete
-            if (entity is ISoftDelete softDeleteEntity)
-            {
-                softDeleteEntity.IsDeleted = true;
-                _context.Update(softDeleteEntity);
-            }
-            else
-            {
-                // Nếu bảng không hỗ trợ xóa mềm, xóa vĩnh viễn
-                _context.Remove(entity);
-            }
-
-            await _context.SaveChangesAsync();
-            return Ok();
         }
 
         // API Xóa vĩnh viễn — Chỉ dùng khi đang ở Tab Thùng rác
@@ -123,15 +133,21 @@ namespace ProjectTviEn.Controllers.Admin
             if (property == null) return NotFound();
 
             var entityType = property.PropertyType.GetGenericArguments()[0];
+            var keyProperty = _context.Model.FindEntityType(entityType)?.FindPrimaryKey()?.Properties.FirstOrDefault();
+            if (keyProperty == null) return NotFound();
 
-            object? entity = null;
-            if (int.TryParse(id, out int intIdForce)) {
-                entity = await _context.FindAsync(entityType, intIdForce);
-            } else if (Guid.TryParse(id, out Guid guidIdForce)) {
-                entity = await _context.FindAsync(entityType, guidIdForce);
+            object? parsedId = null;
+            if (keyProperty.ClrType == typeof(int) && int.TryParse(id, out int intIdForce)) {
+                parsedId = intIdForce;
+            } else if (keyProperty.ClrType == typeof(Guid) && Guid.TryParse(id, out Guid guidIdForce)) {
+                parsedId = guidIdForce;
+            } else if (keyProperty.ClrType == typeof(string)) {
+                parsedId = id;
             } else {
-                entity = await _context.FindAsync(entityType, id);
+                return BadRequest("Unsupported key type");
             }
+
+            var entity = await _context.FindAsync(entityType, parsedId);
 
             if (entity == null) return NotFound();
 
@@ -148,14 +164,21 @@ namespace ProjectTviEn.Controllers.Admin
             if (property == null) return NotFound($"Bảng {tableName} không tồn tại");
 
             var entityType = property.PropertyType.GetGenericArguments()[0];
+            var keyProperty = _context.Model.FindEntityType(entityType)?.FindPrimaryKey()?.Properties.FirstOrDefault();
+            if (keyProperty == null) return NotFound();
 
-            object? entity = null;
-            if (int.TryParse(id, out int intId))
-                entity = await _context.FindAsync(entityType, intId);
-            else if (Guid.TryParse(id, out Guid guidId))
-                entity = await _context.FindAsync(entityType, guidId);
-            else
-                entity = await _context.FindAsync(entityType, id);
+            object? parsedId = null;
+            if (keyProperty.ClrType == typeof(int) && int.TryParse(id, out int intIdRestore)) {
+                parsedId = intIdRestore;
+            } else if (keyProperty.ClrType == typeof(Guid) && Guid.TryParse(id, out Guid guidIdRestore)) {
+                parsedId = guidIdRestore;
+            } else if (keyProperty.ClrType == typeof(string)) {
+                parsedId = id;
+            } else {
+                return BadRequest("Unsupported key type");
+            }
+
+            var entity = await _context.FindAsync(entityType, parsedId);
 
             if (entity == null) return NotFound($"Không tìm thấy bản ghi id={id}");
 

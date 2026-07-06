@@ -49,6 +49,7 @@ namespace ProjectTviEn.Controllers.Admin
                 m.Status, 
                 m.UpdatedAt,
                 m.Type,
+                m.IsIndie,
                 Crews = m.MovieCrews.Select(c => new { c.Person.FullName, c.RoleId }).ToList(),
                 Genres = m.MovieGenres.Select(g => g.Genre.Name).ToList()
             }).ToListAsync();
@@ -69,6 +70,7 @@ namespace ProjectTviEn.Controllers.Admin
                 m.UpdatedAt,
                 m.Crews,
                 m.Genres,
+                m.IsIndie,
                 MovieType = m.Type == MovieType.TvSeries ? "series" : "movie",
                 JobStatus = _context.IngestJobs.Where(j => j.MovieId == m.Id).OrderByDescending(j => j.CreatedAt).Select(j => new { j.Status, j.Logs, j.FinishedAt }).FirstOrDefault()
             }).ToList();
@@ -127,10 +129,10 @@ namespace ProjectTviEn.Controllers.Admin
         }
 
         [HttpGet("slug/{slug}/play")]
-        public async Task<IActionResult> GetPlayUrlBySlug(string slug) {
+        public async Task<IActionResult> GetPlayUrlBySlug(string slug, [FromQuery] Guid? episodeId = null) {
             var movie = await _context.Movies.FirstOrDefaultAsync(m => m.Slug == slug && !m.IsDeleted);
             if (movie == null) return NotFound(new { error = "ERR_SLUG_NOT_FOUND" });
-            return await GeneratePlayResponse(movie);
+            return await GeneratePlayResponse(movie, episodeId);
         }
 
         [HttpGet("slug/{slug}")]
@@ -139,6 +141,8 @@ namespace ProjectTviEn.Controllers.Admin
                 .Include(m => m.Videos.Where(v => !v.IsDeleted))
                 .Include(m => m.MovieGenres).ThenInclude(mg => mg.Genre)
                 .Include(m => m.MovieCrews).ThenInclude(mc => mc.Person)
+                .Include(m => m.Seasons.Where(s => !s.IsDeleted)).ThenInclude(s => s.Episodes.Where(e => !e.IsDeleted && e.Status == 1))
+                .Include(m => m.Episodes.Where(e => !e.IsDeleted && e.Status == 1))
                 .FirstOrDefaultAsync(m => m.Slug == slug && !m.IsDeleted);
             if (movie == null) return NotFound(new { error = "ERR_SLUG_NOT_FOUND" });
 
@@ -150,10 +154,10 @@ namespace ProjectTviEn.Controllers.Admin
         }
 
         [HttpGet("{id}/play")]
-        public async Task<IActionResult> GetPlayUrlById(int id) {
+        public async Task<IActionResult> GetPlayUrlById(int id, [FromQuery] Guid? episodeId = null) {
             var movie = await _context.Movies.FindAsync(id);
             if (movie == null) return NotFound(new { error = "ERR_ID_NOT_FOUND" });
-            return await GeneratePlayResponse(movie);
+            return await GeneratePlayResponse(movie, episodeId);
         }
 
         [HttpGet("image-url/{id}")]
@@ -191,6 +195,7 @@ namespace ProjectTviEn.Controllers.Admin
                 movie.ReleaseYear,
                 movie.Duration,
                 movie.AgeRating,
+                movie.IsIndie,
                 movie.Status,
                 movie.ViewCount,
                 movie.CreatedAt,
@@ -251,6 +256,7 @@ namespace ProjectTviEn.Controllers.Admin
             movie.AgeRating = dto.AgeRating;
             movie.Status = dto.Status;
             movie.Type = dto.Type;   // ✅ Lưu loại phìm
+            movie.IsIndie = dto.IsIndie;
             movie.TrailerUrl = dto.TrailerUrl;
             movie.UpdatedAt = DateTime.UtcNow;
 
@@ -385,22 +391,49 @@ namespace ProjectTviEn.Controllers.Admin
             return Ok(new { message = $"Đang tạo preview cho Movie {id} trong nền. Preview sẽ sẵn sàng sau ~1-2 phút.", previewKey = previewR2Key });
         }
 
-        private async Task<IActionResult> GeneratePlayResponse(Movie movie) {
+        private async Task<IActionResult> GeneratePlayResponse(Movie movie, Guid? episodeId = null) {
 
             try {
-                var video = await _context.Videos.FirstOrDefaultAsync(v => v.MovieId == movie.Id && !v.IsDeleted);
-                if (video == null) return NotFound(new { error = "ERR_VIDEO_NOT_FOUND", movieId = movie.Id });
+                Video? video = null;
+
+                if (movie.Type == MovieType.TvSeries)
+                {
+                    if (episodeId == null)
+                    {
+                        var firstEpisode = await _context.Episodes
+                            .Where(e => e.MovieId == movie.Id && !e.IsDeleted && e.Status == 1)
+                            .OrderBy(e => e.SeasonNumber)
+                            .ThenBy(e => e.EpisodeNumber)
+                            .FirstOrDefaultAsync();
+
+                        if (firstEpisode == null) return NotFound(new { error = "ERR_NO_EPISODES_FOUND", movieId = movie.Id });
+                        episodeId = firstEpisode.EpisodeId;
+                    }
+
+                    video = await _context.Videos.FirstOrDefaultAsync(v => v.EpisodeId == episodeId && !v.IsDeleted);
+                }
+                else
+                {
+                    video = await _context.Videos.FirstOrDefaultAsync(v => v.MovieId == movie.Id && !v.IsDeleted);
+                }
+
+                if (video == null) return NotFound(new { error = "ERR_VIDEO_NOT_FOUND", movieId = movie.Id, episodeId = episodeId });
 
                 var jwtKey = _config["Jwt:Key"] ?? "tvien-super-secret-jwt-key-at-least-32-characters!!";
                 var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
                 var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
                 
                 int expHours = 3;
+                var claims = new List<Claim> { 
+                    new Claim("movieId", movie.Id.ToString()), 
+                    new Claim("title", movie.Title ?? "") 
+                };
+                if (episodeId.HasValue) {
+                    claims.Add(new Claim("episodeId", episodeId.Value.ToString()));
+                }
+
                 var tokenDescriptor = new SecurityTokenDescriptor {
-                    Subject = new ClaimsIdentity(new[] { 
-                        new Claim("movieId", movie.Id.ToString()), 
-                        new Claim("title", movie.Title ?? "") 
-                    }),
+                    Subject = new ClaimsIdentity(claims),
                     Issuer = "tvien-backend",
                     Audience = "tvien-worker",
                     Expires = DateTime.UtcNow.AddHours(expHours), 
@@ -424,7 +457,9 @@ namespace ProjectTviEn.Controllers.Admin
                     Title = movie.Title, 
                     PlayUrl = $"{baseUrl}/api/public/gatekeeper/video/{movie.Id}/master.m3u8",
                     Token = tokenString,
-                    ExpiresInHours = expHours
+                    ExpiresInHours = expHours,
+                    EpisodeId = episodeId,
+                    MovieType = movie.Type == MovieType.TvSeries ? "series" : "movie"
                 });
             } catch (Exception ex) { return StatusCode(500, ex.Message); }
         }

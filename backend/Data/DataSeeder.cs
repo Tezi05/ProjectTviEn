@@ -26,7 +26,9 @@ namespace ProjectTviEn.Data
                     new Genre { Name = "Tình cảm", Slug = "tinh-cam" },
                     new Genre { Name = "Kinh dị", Slug = "kinh-di" },
                     new Genre { Name = "Hài kịch", Slug = "hai-kich" },
-                    new Genre { Name = "Khoa học viễn tưởng", Slug = "sci-fi" }
+                    new Genre { Name = "Khoa học viễn tưởng", Slug = "sci-fi" },
+                    new Genre { Name = "Phim độc lập", Slug = "phim-doc-lap" },
+                    new Genre { Name = "Phim thương mại", Slug = "phim-thuong-mai" }
                 );
                 await context.SaveChangesAsync();
             }
@@ -76,14 +78,18 @@ namespace ProjectTviEn.Data
                 var movies = await context.Movies.ToListAsync();
                 var genres = await context.Genres.ToListAsync();
                 
-                if (movies.Count >= 5 && genres.Count >= 5)
+                if (movies.Count >= 5 && genres.Count >= 7)
                 {
                     context.MovieGenres.AddRange(
                         new MovieGenre { MovieId = movies[0].Id, GenreId = genres[1].GenreId }, // Phim 1 - Tình cảm
                         new MovieGenre { MovieId = movies[1].Id, GenreId = genres[4].GenreId }, // Phim 2 - Sci-fi
                         new MovieGenre { MovieId = movies[2].Id, GenreId = genres[0].GenreId }, // Phim 3 - Hành động
                         new MovieGenre { MovieId = movies[3].Id, GenreId = genres[4].GenreId }, // Phim 4 - Sci-fi
-                        new MovieGenre { MovieId = movies[4].Id, GenreId = genres[3].GenreId }  // Phim 5 - Hài
+                        new MovieGenre { MovieId = movies[4].Id, GenreId = genres[3].GenreId }, // Phim 5 - Hài
+                        new MovieGenre { MovieId = movies[0].Id, GenreId = genres[6].GenreId }, // Phim 1 (Mai) - Phim thương mại
+                        new MovieGenre { MovieId = movies[1].Id, GenreId = genres[5].GenreId }, // Phim 2 (Oppenheimer) - Phim độc lập
+                        new MovieGenre { MovieId = movies[2].Id, GenreId = genres[6].GenreId }, // Phim 3 (Inception) - Phim thương mại
+                        new MovieGenre { MovieId = movies[4].Id, GenreId = genres[5].GenreId }  // Phim 5 (Gặp Lại Chị Bầu) - Phim độc lập
                     );
                     await context.SaveChangesAsync();
                 }

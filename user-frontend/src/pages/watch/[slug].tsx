@@ -38,7 +38,7 @@ function normalizeMovie(d: any): Movie {
 
 export default function WatchPage() {
   const router = useRouter();
-  const { slug } = router.query;
+  const { slug, episodeId: urlEpisodeId } = router.query;
   const { user, logout } = useAuth();
   
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -47,6 +47,11 @@ export default function WatchPage() {
   
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
+  // TV Series specific states
+  const [movieDetails, setMovieDetails] = useState<any>(null);
+  const [currentEpisodeId, setCurrentEpisodeId] = useState<string | null>(null);
+  const [activeSeasonId, setActiveSeasonId] = useState<string | null>(null);
 
   // States for search and auth in Navbar
   const [movies, setMovies] = useState<Movie[]>([]);
@@ -92,26 +97,90 @@ export default function WatchPage() {
   const [myComment, setMyComment] = useState("");
   const [submittingReview, setSubmittingReview] = useState(false);
 
+  const selectEpisode = async (episodeId: string) => {
+    if (!slug) return;
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5113/api'}/admin/Movies/slug/${slug}/play?episodeId=${episodeId}`);
+      if (res.ok) {
+        const json = await res.json();
+        setData(json);
+        setCurrentEpisodeId(episodeId);
+      }
+    } catch (err) {
+      console.error("Error playing episode:", err);
+    }
+  };
+
   useEffect(() => {
     if (!slug) return;
-    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5113/api'}/admin/Movies/slug/${slug}/play`)
-      .then(res => res.json())
-      .then(json => { 
-        if (json.error) {
-          setData(json);
-          setLoading(false);
-          return;
+    setLoading(true);
+
+    const episodeParam = urlEpisodeId ? `?episodeId=${urlEpisodeId}` : '';
+    Promise.all([
+      fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5113/api'}/admin/Movies/slug/${slug}/play${episodeParam}`).then(res => res.json()).catch(() => ({ error: "ERR_FETCH" })),
+      fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5113/api'}/admin/Movies/slug/${slug}`).then(res => res.json()).catch(() => null)
+    ]).then(([playData, details]) => {
+      // 1. Handle Play Data
+      setData(playData);
+      if (playData?.episodeId) {
+        setCurrentEpisodeId(playData.episodeId);
+      }
+
+      // 2. Handle Movie Details
+      if (details && !details.error) {
+        // Fallback: If seasons are empty or lack episodes, but flat episodes list exists, reconstruct seasons
+        if (details.episodes && details.episodes.length > 0 && (!details.seasons || details.seasons.length === 0 || !details.seasons[0].episodes || details.seasons[0].episodes.length === 0)) {
+          const seasonsMap = new Map<number, any[]>();
+          details.episodes.forEach((ep: any) => {
+            const sNum = ep.seasonNumber || 1;
+            if (!seasonsMap.has(sNum)) {
+              seasonsMap.set(sNum, []);
+            }
+            seasonsMap.get(sNum)!.push(ep);
+          });
+          
+          details.seasons = Array.from(seasonsMap.entries()).map(([sNum, eps]) => ({
+            seasonId: `temp-season-${sNum}`,
+            seasonNumber: sNum,
+            episodes: eps
+          }));
         }
-        setData(json); 
-        setLoading(false);
-        // Load reviews
-        const movieId = json.movieId || json.id;
+
+        setMovieDetails(details);
+        
+        // Ensure data has title/description if playData is error
+        if (playData?.error && details.title) {
+          setData((prev: any) => ({ ...prev, title: details.title, description: details.description, posterUrl: details.posterUrl }));
+        }
+
+        const movieId = details.id || playData?.movieId;
         if (movieId) {
           fetchReviews(movieId);
         }
-      })
-      .catch(() => setLoading(false));
+      } else {
+        const movieId = playData?.movieId;
+        if (movieId) fetchReviews(movieId);
+      }
+      
+      setLoading(false);
+    });
   }, [slug]);
+
+  // Set active season based on loaded movieDetails and currentEpisodeId
+  useEffect(() => {
+    if (movieDetails?.seasons && movieDetails.seasons.length > 0) {
+      const currentEp = movieDetails.seasons
+        .flatMap((s: any) => s.episodes || [])
+        .find((e: any) => e.episodeId === currentEpisodeId);
+      
+      if (currentEp) {
+        setActiveSeasonId(currentEp.seasonId);
+      } else {
+        const sortedSeasons = [...movieDetails.seasons].sort((a: any, b: any) => a.seasonNumber - b.seasonNumber);
+        setActiveSeasonId(sortedSeasons[0].seasonId);
+      }
+    }
+  }, [movieDetails, currentEpisodeId]);
 
   // Load Watchlist state when data & user are available
   useEffect(() => {
@@ -164,8 +233,12 @@ export default function WatchPage() {
         })
         .then(history => {
           const found = history.find((h: any) => h.movie && h.movie.id === movieId);
-          if (found && found.progressSeconds > 5) {
-            video.currentTime = found.progressSeconds;
+          if (found && found.progressSeconds > 5 && router.query.restart !== 'true') {
+            // Đảm bảo không lấy nhầm lịch sử của tập phim khác (trong cùng 1 series)
+            const isSameEpisode = !currentEpisodeId || (found.episode && found.episode.episodeId === currentEpisodeId);
+            if (isSameEpisode) {
+              video.currentTime = found.progressSeconds;
+            }
           }
         })
         .catch(console.error);
@@ -193,6 +266,7 @@ export default function WatchPage() {
             body: JSON.stringify({
               userId: user.userId,
               movieId: movieId,
+              episodeId: currentEpisodeId || null,
               progressSeconds: Math.floor(video.currentTime),
               isCompleted: (video.duration - video.currentTime) < 30
             })
@@ -330,6 +404,16 @@ export default function WatchPage() {
 
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-black text-white">Đang tải...</div>;
 
+  const isSeries = movieDetails?.type === 2 || movieDetails?.Type === 2 || movieDetails?.movieType === 'series' || data?.movieType === 'series';
+  const activeEpisode = isSeries 
+    ? (movieDetails?.episodes?.find((e: any) => e.episodeId === currentEpisodeId)
+       || movieDetails?.seasons?.flatMap((s: any) => s.episodes || []).find((e: any) => e.episodeId === currentEpisodeId))
+    : null;
+
+  const displayTitle = activeEpisode 
+    ? `${movieDetails?.title || data?.title || ''} - Tập ${activeEpisode.episodeNumber}${activeEpisode.title ? `: ${activeEpisode.title}` : ''}`
+    : (movieDetails?.title || data?.title || '');
+
   return (
     <div className="watch-page font-sans bg-[#0a0a0a] min-h-screen">
       <Head>
@@ -393,78 +477,156 @@ export default function WatchPage() {
       />
 
       <div className="player-wrapper max-w-[1200px] mx-auto px-8">
+        <div className="mb-6">
+          <h1 className="text-xl sm:text-2xl font-black uppercase tracking-wider text-white font-sans">
+            {displayTitle}
+          </h1>
+        </div>
         <div 
           ref={containerRef} 
           className="video-container" 
           onMouseEnter={() => setIsHovered(true)} 
           onMouseLeave={() => { setIsHovered(false); setShowSettings(false); }}
         >
-          <video ref={videoRef} onTimeUpdate={handleTimeUpdate} onPlay={() => setIsPlaying(true)} onPause={() => setIsPlaying(false)} />
-
-          {/* LỚP PHỦ 3 VÙNG TƯƠNG TÁC TÁCH BIỆT */}
-          <div className="click-zones">
-            <div className="zone-side" onDoubleClick={() => seek(-10)}></div>
-            <div className="zone-center" onClick={togglePlay}></div>
-            <div className="zone-side" onDoubleClick={() => seek(10)}></div>
-          </div>
-
-          <div className="hud">
-            <div className="bottom">
-              <div className="seek-box">
-                <div className="seek-fill" style={{width: `${progress}%`}}></div>
-                <input type="range" className="seek-input" min="0" max="100" step="0.1" value={progress} onChange={handleSeek} />
-              </div>
-
-              <div className="controls">
-                <div className="group">
-                  <button className="btn" onClick={(e) => { e.stopPropagation(); togglePlay(); }}>
-                    {isPlaying ? <Pause size={24} fill="currentColor"/> : <Play size={24} fill="currentColor"/>}
-                  </button>
-                  <div className="vol-container">
-                    <button className="btn" style={{width:'auto'}} onClick={(e) => { e.stopPropagation(); if(videoRef.current) { videoRef.current.volume = videoRef.current.volume > 0 ? 0 : 1; setVolume(videoRef.current.volume); } }}>
-                      {volume === 0 ? <VolumeX size={24} color="white"/> : <Volume2 size={24} color="white"/>}
-                    </button>
-                    <input type="range" className="vol-slider" min="0" max="1" step="0.01" value={volume} onChange={handleVolumeChange} onClick={(e) => e.stopPropagation()} />
-                  </div>
-                  <div className="time-text">{currentTime} / {totalTime}</div>
-                </div>
-
-                <div className="group">
-                  <div style={{display:'flex', gap: '12px'}}>
-                      <button className="btn" onClick={(e) => { e.stopPropagation(); seek(-10); }}>
-                        <RotateCcw size={24}/><span className="seek-label">10</span>
-                      </button>
-                      <button className="btn" onClick={(e) => { e.stopPropagation(); seek(10); }}>
-                        <RotateCw size={24}/><span className="seek-label">10</span>
-                      </button>
-                  </div>
-                  <div style={{position:'relative'}}>
-                    <button className="btn" onClick={(e) => { e.stopPropagation(); setShowSettings(!showSettings); }}>
-                      <Settings size={24}/>
-                      <span style={{fontSize: 11, marginLeft: 8, fontWeight: 800}}>{currentLevel === -1 ? 'AUTO' : levels[currentLevel]?.height}</span>
-                    </button>
-                    {showSettings && (
-                      <div className="quality-pop" onClick={(e) => e.stopPropagation()}>
-                        <div className={`q-opt ${currentLevel === -1 ? 'active' : ''}`} onClick={() => { (window as any).hls.currentLevel = -1; setCurrentLevel(-1); setShowSettings(false); }}>AUTO</div>
-                        {levels.map((l, i) => (
-                          <div key={i} className={`q-opt ${currentLevel === i ? 'active' : ''}`} onClick={() => { (window as any).hls.currentLevel = i; setCurrentLevel(i); setShowSettings(false); }}>{l.height}</div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <button className="btn" onClick={(e) => { e.stopPropagation(); toggleFullScreen(); }}><Maximize size={24}/></button>
-                </div>
-              </div>
+          {(!data || data.error || !data.playUrl) ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#050505] text-white p-6 text-center space-y-4">
+              <div className="text-3xl font-black uppercase tracking-widest font-sans text-neutral-500">Sắp ra mắt</div>
+              <p className="text-[10px] text-neutral-600 uppercase tracking-[0.2em] font-bold">Nội dung này chưa được tải lên hoặc đang được xử lý.</p>
             </div>
-          </div>
+          ) : (
+            <>
+              <video ref={videoRef} onTimeUpdate={handleTimeUpdate} onPlay={() => setIsPlaying(true)} onPause={() => setIsPlaying(false)} />
+
+              {/* LỚP PHỦ 3 VÙNG TƯƠNG TÁC TÁCH BIỆT */}
+              <div className="click-zones">
+                <div className="zone-side" onDoubleClick={() => seek(-10)}></div>
+                <div className="zone-center" onClick={togglePlay}></div>
+                <div className="zone-side" onDoubleClick={() => seek(10)}></div>
+              </div>
+
+              <div className="hud">
+                <div className="bottom">
+                  <div className="seek-box">
+                    <div className="seek-fill" style={{width: `${progress}%`}}></div>
+                    <input type="range" className="seek-input" min="0" max="100" step="0.1" value={progress} onChange={handleSeek} />
+                  </div>
+
+                  <div className="controls">
+                    <div className="group">
+                      <button className="btn" onClick={(e) => { e.stopPropagation(); togglePlay(); }}>
+                        {isPlaying ? <Pause size={24} fill="currentColor"/> : <Play size={24} fill="currentColor"/>}
+                      </button>
+                      <div className="vol-container">
+                        <button className="btn" style={{width:'auto'}} onClick={(e) => { e.stopPropagation(); if(videoRef.current) { videoRef.current.volume = videoRef.current.volume > 0 ? 0 : 1; setVolume(videoRef.current.volume); } }}>
+                          {volume === 0 ? <VolumeX size={24} color="white"/> : <Volume2 size={24} color="white"/>}
+                        </button>
+                        <input type="range" className="vol-slider" min="0" max="1" step="0.01" value={volume} onChange={handleVolumeChange} onClick={(e) => e.stopPropagation()} />
+                      </div>
+                      <div className="time-text">{currentTime} / {totalTime}</div>
+                    </div>
+
+                    <div className="group">
+                      <div style={{display:'flex', gap: '12px'}}>
+                          <button className="btn" onClick={(e) => { e.stopPropagation(); seek(-10); }}>
+                            <RotateCcw size={24}/><span className="seek-label">10</span>
+                          </button>
+                          <button className="btn" onClick={(e) => { e.stopPropagation(); seek(10); }}>
+                            <RotateCw size={24}/><span className="seek-label">10</span>
+                          </button>
+                      </div>
+                      <div style={{position:'relative'}}>
+                        <button className="btn" onClick={(e) => { e.stopPropagation(); setShowSettings(!showSettings); }}>
+                          <Settings size={24}/>
+                          <span style={{fontSize: 11, marginLeft: 8, fontWeight: 800}}>{currentLevel === -1 ? 'AUTO' : levels[currentLevel]?.height}</span>
+                        </button>
+                        {showSettings && (
+                          <div className="quality-pop" onClick={(e) => e.stopPropagation()}>
+                            <div className={`q-opt ${currentLevel === -1 ? 'active' : ''}`} onClick={() => { (window as any).hls.currentLevel = -1; setCurrentLevel(-1); setShowSettings(false); }}>AUTO</div>
+                            {levels.map((l, i) => (
+                              <div key={i} className={`q-opt ${currentLevel === i ? 'active' : ''}`} onClick={() => { (window as any).hls.currentLevel = i; setCurrentLevel(i); setShowSettings(false); }}>{l.height}</div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <button className="btn" onClick={(e) => { e.stopPropagation(); toggleFullScreen(); }}><Maximize size={24}/></button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
+
+      {/* SEASONS & EPISODES SELECTOR */}
+      {(() => {
+        const isSeries = movieDetails?.type === 2 || movieDetails?.Type === 2 || movieDetails?.movieType === 'series' || data?.movieType === 'series';
+        if (!isSeries || !movieDetails?.seasons || movieDetails.seasons.length === 0) return null;
+        
+        return (
+          <div className="max-w-[1200px] mx-auto px-8 mb-12 text-white">
+            <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-6">
+              <h2 className="text-xl font-bold uppercase tracking-widest font-sans">Chọn Tập Phim</h2>
+              {/* Season Selector tabs if more than 1 season */}
+              {movieDetails.seasons.length > 1 && (
+                <div className="flex gap-2">
+                  {movieDetails.seasons
+                    .sort((a: any, b: any) => a.seasonNumber - b.seasonNumber)
+                    .map((season: any) => (
+                      <button
+                        key={season.seasonId}
+                        onClick={() => setActiveSeasonId(season.seasonId)}
+                        className={`px-4 py-2 text-xs font-black uppercase tracking-wider transition rounded-sm border ${
+                          activeSeasonId === season.seasonId
+                            ? 'bg-white text-black border-white'
+                            : 'bg-transparent text-white border-white/10 hover:border-white/40'
+                        }`}
+                      >
+                        Mùa {season.seasonNumber}
+                      </button>
+                    ))}
+                </div>
+              )}
+            </div>
+
+            {/* Episode Grid for active season */}
+            {(() => {
+              const activeSeason = movieDetails.seasons.find((s: any) => s.seasonId === activeSeasonId) || movieDetails.seasons[0];
+              if (!activeSeason || !activeSeason.episodes || activeSeason.episodes.length === 0) {
+                return <div className="text-white/40 text-sm">Không có tập phim nào trong mùa này.</div>;
+              }
+
+              return (
+                <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2">
+                  {activeSeason.episodes
+                    .sort((a: any, b: any) => a.episodeNumber - b.episodeNumber)
+                    .map((episode: any) => {
+                      const isSelected = currentEpisodeId === episode.episodeId;
+                      return (
+                        <button
+                          key={episode.episodeId}
+                          onClick={() => selectEpisode(episode.episodeId)}
+                          className={`flex items-center justify-center py-2.5 px-2 border rounded-sm transition text-center text-xs font-black uppercase tracking-wider ${
+                            isSelected
+                              ? 'bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.15)] font-black'
+                              : 'bg-[#141414] text-white border-[#2A2A2A] hover:border-white/40 hover:bg-[#1C1C1C]'
+                          }`}
+                        >
+                          Tập {episode.episodeNumber}
+                        </button>
+                      );
+                    })}
+                </div>
+              );
+            })()}
+          </div>
+        );
+      })()}
 
       {/* Details & Reviews Section */}
       <div className="max-w-[1200px] mx-auto w-full px-8 py-12 text-white">
         <div className="flex justify-between items-start mb-12">
           <div>
-            <h1 className="text-4xl font-serif font-bold mb-4">{data?.title}</h1>
             <p className="text-white/60 max-w-2xl text-sm leading-relaxed">{data?.description}</p>
           </div>
           

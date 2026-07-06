@@ -48,7 +48,7 @@ namespace ProjectTviEn.Controllers.Public
                     MovieTitle = h.Movie != null ? h.Movie.Title : "",
                     MovieSlug = h.Movie != null ? h.Movie.Slug : "",
                     MoviePosterUrl = h.Movie != null ? h.Movie.PosterUrl : "",
-                    Episode = h.Episode == null ? null : new { h.Episode.EpisodeId, h.Episode.Title }
+                    Episode = h.Episode == null ? null : new { h.Episode.EpisodeId, h.Episode.Title, h.Episode.EpisodeNumber, h.Episode.SeasonNumber }
                 })
                 .ToListAsync();
 
@@ -60,7 +60,12 @@ namespace ProjectTviEn.Controllers.Public
                     Slug = h.MovieSlug,
                     PosterUrl = !string.IsNullOrEmpty(h.MoviePosterUrl) ? _r2Service.GeneratePresignedDownloadUrl(CleanUrl(h.MoviePosterUrl)!) : null 
                 } : null,
-                h.Episode
+                Episode = h.Episode != null ? new {
+                    h.Episode.EpisodeId,
+                    h.Episode.Title,
+                    h.Episode.EpisodeNumber,
+                    h.Episode.SeasonNumber
+                } : null
             }).ToList();
 
             return Ok(history);
@@ -70,14 +75,14 @@ namespace ProjectTviEn.Controllers.Public
         [HttpPost]
         public async Task<IActionResult> UpdateProgress([FromBody] WatchHistory req)
         {
-            // Tìm record cũ hoặc tạo mới
+            // Tìm record cũ theo movie (không theo episode) để chỉ lưu 1 bản ghi duy nhất cho mỗi phim
             var existing = await _db.WatchHistories
                 .FirstOrDefaultAsync(h => h.UserId == req.UserId
-                    && h.MovieId == req.MovieId
-                    && h.EpisodeId == req.EpisodeId);
+                    && h.MovieId == req.MovieId);
 
             if (existing != null)
             {
+                existing.EpisodeId       = req.EpisodeId; // Cập nhật tập phim mới nhất
                 existing.ProgressSeconds = req.ProgressSeconds;
                 existing.IsCompleted     = req.IsCompleted;
                 existing.WatchedAt       = DateTime.UtcNow;
