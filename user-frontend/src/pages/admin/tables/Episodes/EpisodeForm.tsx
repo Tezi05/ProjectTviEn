@@ -4,28 +4,46 @@ import { AddModal, Field, inp, sel, tex, lbl, toSlug } from '../../components/Sh
 import { AutocompleteInput, ACOption } from '../../autocomplete';
 
 export default function EpisodeForm({ onSaved, onClose, episode }: { onSaved: () => void; onClose: () => void; episode?: any }) {
-  const isEdit = !!episode;
-  const [activeTab, setActiveTab] = useState<'info' | 'video'>('info');
-  const [formData, setFormData] = useState<any>(episode || { 
-    movieId: '', 
-    title: '', 
-    slug: '', 
-    description: '', 
-    episodeNumber: 1, 
-    seasonNumber: 1, 
+  const isEdit = !!(episode && episode.episodeId);
+  const defaultForm = {
+    movieId: '', title: '', slug: '', description: '',
+    episodeNumber: 1, seasonNumber: 1,
     airDate: new Date().toISOString().split('T')[0],
     status: 1
-  });
+  };
+  const [formData, setFormData] = useState<any>(episode ? { ...defaultForm, ...episode } : defaultForm);
   const [selectedMovie, setSelectedMovie] = useState<ACOption[]>([]);
+  const [activeTab, setActiveTab] = useState<'info' | 'video'>('info');
   const [isSlugLocked, setIsSlugLocked] = useState(isEdit);
 
   useEffect(() => {
-    if (isEdit && episode.movieId) {
-      // Mock fetch movie info for autocomplete if needed, 
-      // or just set it if episode has movie title
+    if (episode && episode.movieId) {
       setSelectedMovie([{ id: episode.movieId, label: episode.movieTitle || 'Linked Movie' }]);
     }
-  }, [isEdit, episode]);
+  }, [episode]);
+
+  // Auto-increment Episode Number when a movie is selected
+  useEffect(() => {
+    if (!isEdit && selectedMovie.length > 0 && selectedMovie[0].id) {
+      const movieId = selectedMovie[0].id;
+      fetch(`${API_BASE}/admin/system/tables/Episodes`)
+        .then(res => res.json())
+        .then(data => {
+          const movieEpisodes = data.filter((e: any) => e.movieId === movieId);
+          if (movieEpisodes.length > 0) {
+            const maxEp = Math.max(...movieEpisodes.map((e: any) => e.episodeNumber || 0));
+            setFormData((prev: any) => ({ 
+              ...prev, 
+              episodeNumber: maxEp + 1,
+              // Tự động gợi ý luôn tiêu đề nếu đang trống
+              title: prev.title || `Tập ${maxEp + 1}`,
+              slug: (!prev.title || prev.title === `Tập ${maxEp}`) && !isSlugLocked ? toSlug(`Tập ${maxEp + 1}`) : prev.slug
+            }));
+          }
+        })
+        .catch(console.error);
+    }
+  }, [selectedMovie, isEdit, isSlugLocked]);
 
   const handleSave = async () => {
     if (!formData.title || !selectedMovie[0]) return alert('Vui lòng chọn Phim và nhập Tiêu đề tập!');

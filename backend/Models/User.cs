@@ -17,6 +17,16 @@ namespace ProjectTviEn.Models
         [MaxLength(255)]
         public string? PasswordHash { get; set; }
 
+        // OTP for Forgot Password
+        [MaxLength(10)]
+        public string? ResetPasswordOtp { get; set; }
+        
+        public DateTime? ResetPasswordOtpExpiry { get; set; }
+
+        public int FailedOtpAttempts { get; set; } = 0;
+
+        public DateTime? LastForgotPasswordRequest { get; set; }
+
         [Required]
         [MaxLength(255)]
         public string Email { get; set; } = string.Empty;

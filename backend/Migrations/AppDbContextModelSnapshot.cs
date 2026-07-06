@@ -224,6 +224,9 @@ namespace ProjectTviEn.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("IsIndie")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("OriginalTitle")
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
@@ -564,6 +567,9 @@ namespace ProjectTviEn.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
 
+                    b.Property<int>("FailedOtpAttempts")
+                        .HasColumnType("integer");
+
                     b.Property<string>("GoogleId")
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
@@ -574,9 +580,19 @@ namespace ProjectTviEn.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
+                    b.Property<DateTime?>("LastForgotPasswordRequest")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("PasswordHash")
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
+
+                    b.Property<string>("ResetPasswordOtp")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<DateTime?>("ResetPasswordOtpExpiry")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("RoleId")
                         .HasColumnType("integer");

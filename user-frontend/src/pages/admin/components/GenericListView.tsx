@@ -1,13 +1,82 @@
 import React from 'react';
 import { API_BASE } from '../config';
 
-export function GenericListView({ title, data, loading, error, trashView, onTabChange, onAdd, onEdit, onDelete, onRestore }: any) {
+export function GenericListView({ title, data, loading, error, trashView, onTabChange, onAdd, onEdit, onDelete, onRestore, customActions }: any) {
+  const [searchQuery, setSearchQuery] = React.useState('');
+
+  const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+  const isDragging = React.useRef(false);
+  const startX = React.useRef(0);
+  const scrollLeft = React.useRef(0);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    isDragging.current = true;
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.classList.add('cursor-grabbing');
+      startX.current = e.pageX - scrollContainerRef.current.offsetLeft;
+      scrollLeft.current = scrollContainerRef.current.scrollLeft;
+    }
+  };
+
+  const handleMouseLeave = () => {
+    isDragging.current = false;
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.classList.remove('cursor-grabbing');
+    }
+  };
+
+  const handleMouseUp = () => {
+    isDragging.current = false;
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.classList.remove('cursor-grabbing');
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging.current || !scrollContainerRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - scrollContainerRef.current.offsetLeft;
+    const walk = (x - startX.current) * 1.5;
+    scrollContainerRef.current.scrollLeft = scrollLeft.current - walk;
+  };
+
+  const columns = React.useMemo(() => {
+    return (data && data.length > 0) 
+      ? Object.keys(data[0]).filter(k => {
+          const lowerK = k.toLowerCase();
+          if (['deletedat', 'isdeleted', 'passwordhash', 'normalizedemail', 'normalizedusername', 'concurrencystamp', 'securitystamp', 'movieid', 'genreid', 'personid', 'roleid'].includes(lowerK)) {
+            return false;
+          }
+          if (lowerK.includes('url') || lowerK.includes('path') || lowerK.includes('image')) {
+            return false;
+          }
+          const sampleVal = data[0][k];
+          if (sampleVal !== null && sampleVal !== undefined && typeof sampleVal === 'object') {
+            return false;
+          }
+          const allEmpty = data.every((item: any) => {
+            const val = item[k];
+            return val === null || val === undefined || val === '';
+          });
+          if (allEmpty) {
+            return false;
+          }
+          return true;
+        })
+      : [];
+  }, [data]);
+
+  const filteredData = React.useMemo(() => {
+    if (!data) return [];
+    if (!searchQuery.trim()) return data;
+    const lowerQ = searchQuery.toLowerCase();
+    return data.filter((item: any) => 
+      columns.some(col => String(item[col] ?? '').toLowerCase().includes(lowerQ))
+    );
+  }, [data, searchQuery, columns]);
+
   if (loading) return <div className="py-20 text-center text-neutral-500 font-black uppercase tracking-[0.4em] animate-pulse">Loading {title}...</div>;
   if (error) return <div className="py-20 text-center text-red-500 font-black uppercase tracking-widest">{error}</div>;
-  
-  const columns = (data && data.length > 0) 
-    ? Object.keys(data[0]).filter(k => !['deletedAt', 'passwordHash', 'normalizedEmail', 'normalizedUserName', 'concurrencyStamp', 'securityStamp'].includes(k.toLowerCase()))
-    : [];
 
   return (
     <div className="space-y-8">
@@ -16,7 +85,7 @@ export function GenericListView({ title, data, loading, error, trashView, onTabC
           <div>
             <h2 className="text-4xl font-black text-white tracking-tighter uppercase leading-none">{title}</h2>
             <p className="text-[10px] text-neutral-500 font-black uppercase tracking-[0.2em] mt-2">
-              {data && data.length > 0 ? `Found ${data.length} records` : `No records found`}
+              {filteredData && filteredData.length > 0 ? `Found ${filteredData.length} records` : `No records found`}
             </p>
           </div>
           
@@ -35,6 +104,18 @@ export function GenericListView({ title, data, loading, error, trashView, onTabC
               Trash
             </button>
           </div>
+
+          {/* SEARCH BAR */}
+          <div className="flex items-center bg-[#0A0A0A] border border-neutral-900 rounded-sm px-4 h-10 w-full sm:w-[300px]">
+            <span className="material-symbols-outlined text-neutral-500 text-[16px] mr-2">search</span>
+            <input 
+              type="text" 
+              placeholder="Tìm kiếm trong bảng..." 
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="bg-transparent border-none outline-none text-[11px] text-white font-medium w-full placeholder:text-neutral-600"
+            />
+          </div>
         </div>
 
         <div className="flex gap-3">
@@ -46,7 +127,7 @@ export function GenericListView({ title, data, loading, error, trashView, onTabC
         </div>
       </div>
 
-      {!data || data.length === 0 ? (
+      {!filteredData || filteredData.length === 0 ? (
         <div className="py-24 border border-dashed border-neutral-800 rounded-sm bg-neutral-900/20 text-center space-y-4">
           <div className="text-[10px] text-neutral-600 font-black uppercase tracking-[0.4em]">No {trashView ? 'Deleted' : 'Active'} Data Found in {title}</div>
           {onAdd && !trashView && (
@@ -55,8 +136,15 @@ export function GenericListView({ title, data, loading, error, trashView, onTabC
         </div>
       ) : (
         <div className="bg-[#141414] border border-[#2A2A2A] rounded-sm overflow-hidden shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-500">
-          <div className="overflow-x-auto hide-scrollbar">
-            <table className="w-full text-left border-collapse min-w-[800px] sm:min-w-full">
+          <div 
+            ref={scrollContainerRef}
+            onMouseDown={handleMouseDown}
+            onMouseLeave={handleMouseLeave}
+            onMouseUp={handleMouseUp}
+            onMouseMove={handleMouseMove}
+            className="overflow-x-auto custom-scrollbar pb-3 select-none"
+          >
+            <table className="w-full text-left border-collapse min-w-[1200px] sm:min-w-full">
               <thead className="bg-[#1A1A1A] border-b border-[#2A2A2A]">
                 <tr>
                   {columns.map(col => <th key={col} className="px-4 lg:px-6 py-4 text-[9px] font-black text-neutral-400 uppercase tracking-[0.3em]">{col}</th>)}
@@ -64,14 +152,25 @@ export function GenericListView({ title, data, loading, error, trashView, onTabC
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#2A2A2A]">
-                {data.map((item: any, idx: number) => (
+                {filteredData.map((item: any, idx: number) => (
                   <tr key={idx} className={`hover:bg-white/[0.02] transition-colors group ${trashView ? 'opacity-50' : ''}`}>
                     {columns.map(col => (
                       <td key={col} className="px-4 lg:px-6 py-4">
                         <span className="text-[12px] text-neutral-100 font-medium line-clamp-2 max-w-[200px] break-words" title={String(item[col] ?? '')}>
                           {(() => {
                             const val = item[col];
-                            if (!val) return '-';
+                            if (val === null || val === undefined || val === '') return '-';
+                            if (col.toLowerCase() === 'type') {
+                              if (val === 1 || val === 'SingleMovie' || String(val) === '1') return 'Phim lẻ';
+                              if (val === 2 || val === 'TvSeries' || String(val) === '2') return 'Phim bộ';
+                              return String(val);
+                            }
+                            if (typeof val === 'boolean') {
+                              if (col.toLowerCase() === 'isindie') {
+                                return val ? 'Độc lập' : 'Thương mại';
+                              }
+                              return val ? 'Yes' : 'No';
+                            }
                             if (col.toLowerCase() !== 'path' && (col.toLowerCase().includes('date') || col.toLowerCase().includes('at'))) {
                               return new Date(val).toLocaleDateString();
                             }
@@ -87,6 +186,7 @@ export function GenericListView({ title, data, loading, error, trashView, onTabC
                     ))}
                     <td className="px-4 lg:px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-3 lg:opacity-0 lg:group-hover:opacity-100 transition-all transform lg:translate-x-2 lg:group-hover:translate-x-0">
+                        {!trashView && customActions && customActions(item)}
                         {trashView ? (
                           <button onClick={() => onRestore(item)} className="p-1.5 hover:bg-green-500/10 rounded text-neutral-500 hover:text-green-500 transition-all"><span className="material-symbols-outlined !text-[18px]">settings_backup_restore</span></button>
                         ) : (onEdit && <button onClick={() => onEdit(item)} className="p-1.5 hover:bg-white/10 rounded text-neutral-500 hover:text-white transition-all"><span className="material-symbols-outlined !text-[18px]">edit</span></button>)}

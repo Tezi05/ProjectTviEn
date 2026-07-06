@@ -20,6 +20,7 @@ interface Movie {
   crews?: { fullName: string, roleId: number }[];
   ageRating?: string;
   genres?: string[];
+  isIndie?: boolean;
 }
  
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -50,27 +51,31 @@ function normalizeMovie(d: any): Movie {
     crews:                d.crews            ?? d.Crews            ?? [],
     ageRating:            d.ageRating        ?? d.AgeRating        ?? '',
     genres:               d.genres           ?? d.Genres           ?? [],
+    isIndie:              d.isIndie          ?? d.IsIndie          ?? false,
   };
 }
  
 
  
 // ─── HoverPlayer (Super Optimized - Lazy Video) ───────────────────────────────
-const HoverPlayer = memo(({ id, slug, title, posterUrl, description }: Movie) => {
+const HoverPlayer = memo(({ id, slug, title, posterUrl, description, onPlay }: Movie & { onPlay?: (slug: string, id: string) => void }) => {
   const router = useRouter();
   const [isHovered, setIsHovered] = useState(false);
+  const [showTrailer, setShowTrailer] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const previewUrl = `${WORKER_URL}/video/${id}/preview.mp4`;
- 
+
   return (
     <div
-      onClick={() => router.push(`/watch/${slug || id}`)}
+      onClick={() => onPlay ? onPlay(slug || id, id) : router.push(`/watch/${slug || id}`)}
       onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseLeave={() => { setIsHovered(false); setShowTrailer(false); }}
       className="flex-none w-[240px] aspect-[2/3] relative group overflow-hidden bg-[#201f1f] cursor-pointer rounded-sm"
     >
       {/* Chỉ mount Video khi thực sự Hover - Cực kỳ tiết kiệm CPU & Băng thông */}
       {isHovered && (
         <video 
+          ref={videoRef}
           src={previewUrl} 
           autoPlay 
           muted 
@@ -88,13 +93,25 @@ const HoverPlayer = memo(({ id, slug, title, posterUrl, description }: Movie) =>
       />
       
       {/* Khung nội dung bao trùm toàn bộ thẻ (từ trên xuống), hiển thị khi hover */}
-      <div className="absolute inset-0 p-5 z-30 flex flex-col justify-start gap-2.5 transform translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 bg-black/60 backdrop-blur-[1px] rounded-sm">
+      <div className={`absolute inset-0 p-5 z-30 flex flex-col justify-start gap-2.5 transform translate-y-4 group-hover:translate-y-0 transition-all duration-300 bg-black/60 backdrop-blur-[1px] rounded-sm ${showTrailer ? 'opacity-0 pointer-events-none' : 'opacity-0 group-hover:opacity-100'}`}>
         <span className="text-white text-xs font-bold uppercase tracking-widest block border-b border-white/10 pb-1.5 truncate" title={title}>{title}</span>
         {description && (
-          <p className="text-[10px] text-white/80 font-light line-clamp-[17] leading-relaxed overflow-hidden">
+          <p className="text-[10px] text-white/80 font-light leading-relaxed overflow-y-auto flex-1 pr-1 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
             {description}
           </p>
         )}
+        <div className="mt-auto flex justify-start pt-2">
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowTrailer(true);
+              if (videoRef.current) videoRef.current.currentTime = 0;
+            }}
+            className="text-[10px] font-bold text-white/60 hover:text-white uppercase tracking-widest transition-colors"
+          >
+            Xem Trailer &gt;
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -102,18 +119,33 @@ const HoverPlayer = memo(({ id, slug, title, posterUrl, description }: Movie) =>
 HoverPlayer.displayName = 'HoverPlayer';
  
 // ─── ContinueCard (Optimized) ─────────────────────────────────────────────────
-const ContinueCard = memo(({ title, imgUrl, progress, movieId, slug }: { title: string; imgUrl: string; progress: number; movieId?: string; slug?: string }) => {
+const ContinueCard = memo(({ title, imgUrl, progress, movieId, slug, episode }: { title: string; imgUrl: string; progress: number; movieId?: string; slug?: string; episode?: { episodeId: string; title: string; episodeNumber: number; seasonNumber: number } }) => {
   const router = useRouter();
   return (
     <div 
-      onClick={() => (slug || movieId) && router.push(`/watch/${slug || movieId}`)}
-      className="flex-none w-[420px] aspect-video relative group overflow-hidden bg-[#201f1f] cursor-pointer rounded-sm"
+      onClick={() => (slug || movieId) && router.push(`/watch/${slug || movieId}${episode ? `?episodeId=${episode.episodeId}` : ''}`)}
+      className="flex-none w-[240px] aspect-[2/3] relative group overflow-hidden bg-[#201f1f] cursor-pointer rounded-sm"
     >
       <img src={imgUrl} alt={title} loading="lazy" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-100" />
-      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20">
-        <PlayCircle className="w-16 h-16 text-white" strokeWidth={1} />
+      
+      {/* Play button overlay and episode info on hover */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 p-4 text-center z-20">
+        <PlayCircle className="w-12 h-12 text-white mb-2" strokeWidth={1} />
+        {episode && (
+          <div className="text-white text-[11px] font-bold uppercase tracking-wider">
+            Tập {episode.episodeNumber} {episode.title ? `: ${episode.title}` : ''}
+          </div>
+        )}
       </div>
-      <div className="absolute bottom-0 left-0 w-full h-[3px] bg-white/10">
+
+      {/* Episode badge on top-left (visible when not hovered) */}
+      {episode && (
+        <div className="absolute top-2 left-2 bg-black/70 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-sm z-10 group-hover:opacity-0 transition-opacity">
+          Tập {episode.episodeNumber}
+        </div>
+      )}
+
+      <div className="absolute bottom-0 left-0 w-full h-[3px] bg-white/10 z-15">
         <div className="h-full bg-white shadow-[0_0_12px_rgba(255,255,255,0.8)] transition-all duration-500" style={{ width: `${progress}%` }} />
       </div>
     </div>
@@ -130,7 +162,7 @@ export default function CinemaApp() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const urlSearchQuery = router.query.q as string;
-  const [activeTab, setActiveTab] = useState('cinema');
+  const [activeTab, setActiveTab] = useState('trangchu');
   
   const uniqueActors = React.useMemo(() => Array.from(new Set(movies.flatMap(m => m.crews?.filter(c => c.roleId === 2).map(c => c.fullName) || []))), [movies]);
   const uniqueDirectors = React.useMemo(() => Array.from(new Set(movies.flatMap(m => m.crews?.filter(c => c.roleId === 1).map(c => c.fullName) || []))), [movies]);
@@ -139,6 +171,16 @@ export default function CinemaApp() {
   const [authModalOpen, setAuthModalOpen] = useState(false);
 
   const [history, setHistory] = useState<any[]>([]);
+  const [resumePrompt, setResumePrompt] = useState<{slug: string, movieId: string, history: any} | null>(null);
+
+  const handlePlay = (slug: string, movieId: string) => {
+    const userHistory = history.find(h => h.movie && h.movie.id.toString() === movieId.toString());
+    if (userHistory && userHistory.progressSeconds > 5 && !userHistory.isCompleted) {
+      setResumePrompt({ slug, movieId, history: userHistory });
+    } else {
+      router.push(`/watch/${slug}`);
+    }
+  };
   const [watchlist, setWatchlist] = useState<any[]>([]);
 
   useEffect(() => {
@@ -210,18 +252,33 @@ export default function CinemaApp() {
   }, []);
 
   const filteredMovies = movies.filter(m => {
-    if (activeTab === 'series') return m.movieType === 'series';
-    if (activeTab === 'cinema') return m.movieType === 'movie';
+    if (activeTab === 'tvseries') return m.movieType === 'series';
+    if (activeTab === 'phimdoclap') return m.isIndie === true;
+    if (activeTab === 'phimthuongmai') return m.isIndie === false;
     return true;
   });
 
-  const featured = filteredMovies.length > 0 ? filteredMovies[0] : (movies[0] || null);
+  const newestMovies = React.useMemo(() => {
+    return [...filteredMovies].sort((a, b) => parseInt(b.id) - parseInt(a.id)).slice(0, 5);
+  }, [filteredMovies]);
+
+  const [heroIndex, setHeroIndex] = useState(0);
+
+  useEffect(() => {
+    if (newestMovies.length === 0) return;
+    const interval = setInterval(() => {
+      setHeroIndex(prev => (prev + 1) % newestMovies.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [newestMovies]);
+
+  const featured = newestMovies[heroIndex] || (movies[0] || null);
   const trending = filteredMovies.filter(m => m.weeklyViewsResetWeek === CURRENT_WEEK).sort((a,b) => (b.weeklyViews||0)-(a.weeklyViews||0)).slice(0, 10);
  
   return (
     <>
       <Head>
-        <title>TviEn — The Void is Calling</title>
+        <title>TviEn — Tiếng nói từ khung hình</title>
         <style>{`
           /* Ẩn thanh cuộn toàn cục */
           html, body, #__next {
@@ -257,18 +314,18 @@ export default function CinemaApp() {
           uniqueDirectors={uniqueDirectors}
         />
         
-        {activeTab === 'library' ? (
+        {activeTab === 'thuvien' ? (
           <main className="w-full max-w-[1600px] mx-auto px-8 md:px-16 pt-32 pb-24 min-h-[70vh]">
             {!user ? (
               <div className="text-center mt-32">
-                <h2 className="text-4xl font-serif text-white mb-6">Your Library</h2>
-                <p className="text-white/40 mb-10 text-lg">Sign in to sync your watch history and saved movies.</p>
-                <button onClick={() => setAuthModalOpen(true)} className="bg-white text-black px-10 py-4 rounded-sm font-bold text-xs uppercase tracking-widest hover:bg-white/90">Sign In</button>
+                <h2 className="text-4xl font-serif text-white mb-6">Thư viện</h2>
+                <p className="text-white/40 mb-10 text-lg">Đăng nhập để tận hưởng tính năng</p>
+                <button onClick={() => setAuthModalOpen(true)} className="bg-white text-black px-10 py-4 rounded-sm font-bold text-xs uppercase tracking-widest hover:bg-white/90">Đăng nhập</button>
               </div>
             ) : (
               <>
                 <section className="mb-24">
-                  <h2 className="text-[42px] font-serif font-bold text-white mb-12 tracking-tight">My Watchlist</h2>
+                  <h2 className="text-[42px] font-serif font-bold text-white mb-12 tracking-tight">Yêu thích</h2>
                   {watchlist.length === 0 ? (
                     <div className="py-20 text-center border border-dashed border-white/5 rounded-sm bg-white/[0.01]">
                       <p className="text-white/30 text-lg font-light tracking-wide">Danh sách trống. Hãy thêm phim vào danh sách xem sau.</p>
@@ -277,7 +334,7 @@ export default function CinemaApp() {
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-8">
                       {watchlist.map(w => (
                         <div key={w.watchlistId} className="transform hover:scale-105 transition-transform duration-300">
-                          <HoverPlayer id={w.movie.id} slug={w.movie.slug} title={w.movie.title} posterUrl={w.movie.posterUrl} description={w.movie.description} />
+                          <HoverPlayer id={w.movie.id} slug={w.movie.slug} title={w.movie.title} posterUrl={w.movie.posterUrl} description={w.movie.description} onPlay={handlePlay} />
                         </div>
                       ))}
                     </div>
@@ -285,7 +342,7 @@ export default function CinemaApp() {
                 </section>
                 
                 <section className="mb-24">
-                  <h2 className="text-[42px] font-serif font-bold text-white mb-12 tracking-tight">Watch History</h2>
+                  <h2 className="text-[42px] font-serif font-bold text-white mb-12 tracking-tight">Lịch sử xem</h2>
                   {history.length === 0 ? (
                     <div className="py-20 text-center border border-dashed border-white/5 rounded-sm bg-white/[0.01]">
                       <p className="text-white/30 text-lg font-light tracking-wide">Bạn chưa xem bộ phim nào.</p>
@@ -300,6 +357,7 @@ export default function CinemaApp() {
                           imgUrl={h.movie.posterUrl} 
                           movieId={h.movie.id} 
                           slug={h.movie.slug}
+                          episode={h.episode}
                         />
                       ))}
                     </div>
@@ -327,30 +385,40 @@ export default function CinemaApp() {
                 else if (lower.startsWith('năm:')) years.push(seg.substring('năm:'.length).trim().toLowerCase());
                 else if (lower.startsWith('thể loại:')) genres.push(seg.substring('thể loại:'.length).trim().toLowerCase());
                 else if (lower.startsWith('độ tuổi:')) ages.push(seg.substring('độ tuổi:'.length).trim().toLowerCase());
-                else if (['g', 'pg', 'pg-13', 'r', 'nc-17'].includes(lower)) ages.push(lower);
-                else if (['blockbuster', 'indie'].includes(lower)) types.push(lower);
+                else if (lower.startsWith('phân loại:')) types.push(seg.substring('phân loại:'.length).trim().toLowerCase());
                 else titles.push(lower);
             });
 
             if (actors.length > 0 && !actors.every(a => m.crews?.some(c => c.roleId === 2 && c.fullName.toLowerCase().includes(a)))) return false;
             if (directors.length > 0 && !directors.every(d => m.crews?.some(c => c.roleId === 1 && c.fullName.toLowerCase().includes(d)))) return false;
-            if (years.length > 0 && !years.every(y => m.releaseYear?.toString().includes(y))) return false;
-            if (genres.length > 0 && !genres.every(g => 
-              m.genres?.some(mg => mg.toLowerCase() === g) || 
-              m.title.toLowerCase().includes(g) || 
-              m.description?.toLowerCase().includes(g)
-            )) return false;
-            if (ages.length > 0 && !ages.every(a => m.ageRating?.toLowerCase().includes(a))) return false;
+            
+            // SIÊU CHẮC CHẮN: Xử lý khoảng trắng, chữ hoa chữ thường và fallback an toàn
+            if (years.length > 0 && !years.every(y => m.releaseYear?.toString().trim() === y)) return false;
+            
+            if (genres.length > 0 && !genres.every(g => {
+              const safeG = g.trim();
+              return m.genres?.some(mg => {
+                const safeMg = mg.trim().toLowerCase();
+                return safeMg === safeG || safeMg.includes(safeG);
+              });
+            })) return false;
+            
+            if (ages.length > 0 && !ages.every(a => {
+              const safeA = a.trim();
+              const dbA = (m.ageRating || '').toString().trim().toLowerCase();
+              return dbA === safeA || dbA.includes(safeA);
+            })) return false;
+
             if (types.length > 0 && !types.every(t => {
-              if (t === 'blockbuster') return (m.weeklyViews || 0) > 5 || (m.weeklyViewsResetWeek || 0) > 0;
-              if (t === 'indie') return (m.weeklyViews || 0) <= 5;
+              const safeT = t.trim();
+              if (safeT === 'blockbuster' || safeT === 'thương mại') return m.isIndie === false;
+              if (safeT === 'indie' || safeT === 'độc lập') return m.isIndie === true;
               return true;
             })) return false;
+            
             if (titles.length > 0 && !titles.every(t => 
               m.title.toLowerCase().includes(t) || 
-              m.description?.toLowerCase().includes(t) ||
-              m.crews?.some(c => c.fullName.toLowerCase().includes(t)) ||
-              m.releaseYear?.toString().includes(t)
+              (m.description || '').toLowerCase().includes(t)
             )) return false;
             return true;
           };
@@ -377,7 +445,7 @@ export default function CinemaApp() {
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-8">
                   {results.map(m => (
-                    <HoverPlayer key={m.id} {...m} />
+                    <HoverPlayer key={m.id} {...m} onPlay={handlePlay} />
                   ))}
                 </div>
               )}
@@ -387,46 +455,39 @@ export default function CinemaApp() {
           <>
             {/* Hero */}
             <header className="relative w-full h-[90vh] min-h-[700px] flex items-end overflow-hidden">
-              <img src={featured?.posterUrl || 'https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=2000'} alt="" className="absolute inset-0 w-full h-full object-cover scale-105 z-0" />
+              <img key={featured?.id} src={featured?.posterUrl || 'https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=2000'} alt="" className="absolute inset-0 w-full h-full object-cover scale-105 z-0 animate-fade-in" />
               <div className="absolute inset-0 bg-gradient-to-t from-[#131313] via-[#131313]/60 to-transparent z-10" />
               <div className="absolute inset-0 bg-gradient-to-r from-[#131313]/80 via-transparent to-transparent z-10" />
               <div className="relative z-20 w-full max-w-[1600px] mx-auto px-8 md:px-16 pb-24">
-                <h1 className="text-6xl md:text-8xl font-serif font-bold text-white mb-6 max-w-4xl tracking-tight leading-[0.9]">
+                <h1 key={"title-"+featured?.id} className="text-6xl md:text-8xl font-serif font-bold text-white mb-6 max-w-4xl tracking-tight leading-[0.9] animate-fade-in">
                   {featured?.title || 'The Echoes of Silence'}
                 </h1>
-                <p className="text-white/60 text-lg max-w-2xl mb-10 font-light leading-relaxed">
+                <p key={"desc-"+featured?.id} className="text-white/60 text-lg max-w-2xl mb-10 font-light leading-relaxed animate-fade-in">
                   {featured?.description || 'In a world where sound is forbidden, one rebel discovers a frequency that could shatter the fragile peace of the utopia.'}
                 </p>
                 <button onClick={() => featured && router.push(`/watch/${featured.slug || featured.id}`)} className="bg-white text-black px-10 py-4 rounded-sm font-semibold text-[11px] uppercase tracking-[0.2em] hover:bg-white/80 transition-all flex items-center gap-3">
-                  <Play className="w-5 h-5 fill-current" /> Play Now
+                  <Play className="w-5 h-5 fill-current" /> Xem
                 </button>
               </div>
             </header>
     
             <main className="w-full max-w-[1600px] mx-auto px-8 md:px-16 pt-24">
-              {history.length > 0 && (
-                <section className="mb-24">
-                  <h2 className="text-[42px] font-serif font-bold text-white mb-12 tracking-tight">Continue Watching</h2>
-                  <div className="flex gap-10 overflow-x-auto pb-10 hide-scrollbar">
-                    {history.map(h => (
-                      <ContinueCard 
-                        key={h.historyId} 
-                        title={h.movie.title} 
-                        progress={h.isCompleted ? 100 : Math.min(100, (h.progressSeconds / 7200) * 100)}
-                        imgUrl={h.movie.posterUrl} 
-                        movieId={h.movie.id} 
-                        slug={h.movie.slug}
-                      />
-                    ))}
-                  </div>
-                </section>
-              )}
+              
 
               <section className="mb-24">
-                <h2 className="text-[42px] font-serif font-bold text-white mb-12 tracking-tight">New & Noteworthy</h2>
+                <h2 className="text-[42px] font-serif font-bold text-white mb-12 tracking-tight">Phim Mới</h2>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-8">
                   {loading ? [1,2,3,4,5].map(i => <div key={i} className="w-full aspect-[2/3] bg-white/5 animate-pulse rounded-sm" />) :
-                    filteredMovies.map(m => <HoverPlayer key={m.id} {...m} />)
+                    newestMovies.map(m => <HoverPlayer key={m.id} {...m} onPlay={handlePlay} />)
+                  }
+                </div>
+              </section>
+
+              <section className="mb-24">
+                <h2 className="text-[42px] font-serif font-bold text-white mb-12 tracking-tight">Tất Cả Phim</h2>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-8">
+                  {loading ? [1,2,3,4,5,6,7,8,9,10].map(i => <div key={i} className="w-full aspect-[2/3] bg-white/5 animate-pulse rounded-sm" />) :
+                    filteredMovies.map(m => <HoverPlayer key={m.id} {...m} onPlay={handlePlay} />)
                   }
                 </div>
               </section>
@@ -435,11 +496,44 @@ export default function CinemaApp() {
         )}
  
         <footer className="w-full py-24 bg-[#0A0A0A] mt-24 border-t border-white/5 text-center">
-          <p className="text-[10px] tracking-[0.4em] uppercase text-white/10">© 2026 TVIEN. THE VOID IS CALLING.</p>
+          <p className="text-[10px] tracking-[0.4em] uppercase text-white/10">© 2026 TVIEN. Nghệ thuật thứ 7.</p>
         </footer>
 
 
 
+        
+        {resumePrompt && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in">
+            <div className="relative bg-[#111] border border-white/10 p-8 w-full max-w-md rounded-sm shadow-2xl flex flex-col gap-6">
+              <div>
+                <h3 className="text-xl font-serif font-bold text-white mb-2">Xem tiếp?</h3>
+                <p className="text-white/60 text-sm leading-relaxed">
+                  Bạn đang xem dở <strong className="text-white">{resumePrompt.history.movie.title}</strong> 
+                  {resumePrompt.history.episode ? ` (Tập ${resumePrompt.history.episode.episodeNumber})` : ''} 
+                  {' '}tại lúc <strong className="text-white">{Math.floor(resumePrompt.history.progressSeconds / 60)}:{Math.floor(resumePrompt.history.progressSeconds % 60).toString().padStart(2, '0')}</strong>.
+                  Bạn có muốn tiếp tục không?
+                </p>
+              </div>
+              <div className="flex justify-end gap-3 mt-4">
+                <button 
+                  onClick={() => { setResumePrompt(null); router.push(`/watch/${resumePrompt.slug}?restart=true${resumePrompt.history.episode ? `&episodeId=${resumePrompt.history.episode.episodeId}` : ''}`); }}
+                  className="px-5 py-2.5 text-xs font-bold uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/5 border border-transparent transition rounded-sm"
+                >
+                  Xem từ đầu
+                </button>
+                <button 
+                  onClick={() => { setResumePrompt(null); router.push(`/watch/${resumePrompt.slug}${resumePrompt.history.episode ? `?episodeId=${resumePrompt.history.episode.episodeId}` : ''}`); }}
+                  className="px-5 py-2.5 text-xs font-bold uppercase tracking-widest bg-white text-black hover:bg-white/80 transition rounded-sm shadow-[0_0_15px_rgba(255,255,255,0.2)]"
+                >
+                  Xem tiếp
+                </button>
+              </div>
+              <button onClick={() => setResumePrompt(null)} className="absolute top-4 right-4 text-white/40 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        )}
         <AuthModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} />
       </div>
     </>

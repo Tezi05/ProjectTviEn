@@ -56,6 +56,8 @@ namespace ProjectTviEn.Models
         /// </summary>
         public MovieType Type { get; set; } = MovieType.SingleMovie;
 
+        public bool IsIndie { get; set; } = false;
+
         public int ViewCount { get; set; } = 0;
 
         // --- Quản trị & Audit ---

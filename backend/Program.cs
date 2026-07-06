@@ -75,6 +75,7 @@ namespace ProjectTviEn
 
 
             builder.Services.AddScoped<IR2Service, R2Service>();
+            builder.Services.AddScoped<IEmailService, GmailEmailService>();
 
             builder.Services.AddCors(options =>
             {

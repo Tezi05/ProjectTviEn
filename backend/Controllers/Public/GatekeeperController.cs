@@ -66,22 +66,40 @@ namespace ProjectTviEn.Controllers.Public
 
                 if (movie?.Type == MovieType.TvSeries)
                 {
-                    // Series: bắt buộc đi Season 1 → Episode 1 → Video
-                    var firstEpisode = await _db.Seasons
-                        .Where(s => s.MovieId == movieIntId && !s.IsDeleted)
-                        .OrderBy(s => s.SeasonNumber)
-                        .SelectMany(s => s.Episodes)
-                        .Where(e => !e.IsDeleted)
-                        .OrderBy(e => e.EpisodeNumber)
-                        .FirstOrDefaultAsync();
+                    string? claimEpisodeId = null;
+                    if (!string.IsNullOrEmpty(token))
+                    {
+                        try {
+                            var tokenHandler = new JwtSecurityTokenHandler();
+                            var jwtToken = tokenHandler.ReadJwtToken(token);
+                            claimEpisodeId = jwtToken.Claims.FirstOrDefault(x => x.Type == "episodeId")?.Value;
+                        } catch {}
+                    }
 
-                    if (firstEpisode != null)
+                    if (!string.IsNullOrEmpty(claimEpisodeId) && Guid.TryParse(claimEpisodeId, out Guid epGuid))
                     {
                         videoRecord = await _db.Videos
                             .AsNoTracking()
-                            .Where(v => v.EpisodeId == firstEpisode.EpisodeId && !v.IsDeleted
-                                        && !string.IsNullOrEmpty(v.MasterPlaylistUrl))
+                            .Where(v => v.EpisodeId == epGuid && !v.IsDeleted && !string.IsNullOrEmpty(v.MasterPlaylistUrl))
                             .FirstOrDefaultAsync();
+                    }
+                    else
+                    {
+                        // Series: bắt buộc đi Season 1 → Episode 1 → Video
+                        var firstEpisode = await _db.Episodes
+                            .Where(e => e.MovieId == movieIntId && !e.IsDeleted)
+                            .OrderBy(e => e.SeasonNumber)
+                            .ThenBy(e => e.EpisodeNumber)
+                            .FirstOrDefaultAsync();
+
+                        if (firstEpisode != null)
+                        {
+                            videoRecord = await _db.Videos
+                                .AsNoTracking()
+                                .Where(v => v.EpisodeId == firstEpisode.EpisodeId && !v.IsDeleted
+                                            && !string.IsNullOrEmpty(v.MasterPlaylistUrl))
+                                .FirstOrDefaultAsync();
+                        }
                     }
                 }
                 else
