@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { API_BASE, CDN_BASE } from '../../config';
 import { AddModal, Field, inp, sel, tex, lbl, toSlug } from '../../components/SharedUI';
+import { AutocompleteInput, ACOption } from '../../autocomplete';
 
 export default function MovieEditor({ movie, onCancel, onSaved }: any) {
   const isEdit = !!movie;
@@ -19,6 +20,7 @@ export default function MovieEditor({ movie, onCancel, onSaved }: any) {
   const [pendingPoster, setPendingPoster] = useState<File | null>(null);
   const [pendingBackdrop, setPendingBackdrop] = useState<File | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [selectedPerson, setSelectedPerson] = useState<ACOption[]>([]);
 
   const [isDurationOpen, setIsDurationOpen] = useState(false);
   const durationDropdownRef = useRef<HTMLDivElement>(null);
@@ -337,7 +339,16 @@ export default function MovieEditor({ movie, onCancel, onSaved }: any) {
                     return (
                       <div key={idx} className="flex items-center gap-6 bg-black border border-neutral-800 p-5 rounded-sm group hover:border-neutral-600 transition-all">
                         <div className="flex-1 text-[13px] font-bold text-white uppercase tracking-tight">{person?.fullName || 'Unknown'}</div>
-                        <select className="bg-neutral-900 border border-neutral-800 text-[10px] font-black uppercase px-4 py-2 outline-none focus:border-white transition-all text-neutral-400" value={cm.roleId} onChange={e => { const m = [...formData.crewMembers]; m[idx].roleId = parseInt(e.target.value); setFormData({...formData, crewMembers: m}); }}>
+                        <select className="bg-neutral-900 border border-neutral-800 text-[10px] font-black uppercase px-4 py-2 outline-none focus:border-white transition-all text-neutral-400" value={cm.roleId} onChange={e => { 
+                          const newRoleId = parseInt(e.target.value);
+                          const m = [...formData.crewMembers]; 
+                          if (m.some((c, i) => i !== idx && c.personId === cm.personId && c.roleId === newRoleId)) {
+                            alert("Nhân sự này đã có vai trò này rồi!");
+                            return;
+                          }
+                          m[idx].roleId = newRoleId; 
+                          setFormData({...formData, crewMembers: m}); 
+                        }}>
                           <option value={1}>Đạo diễn</option><option value={2}>Diễn viên</option><option value={3}>Biên kịch</option>
                         </select>
                         <button onClick={() => { const m = [...formData.crewMembers]; m.splice(idx, 1); setFormData({...formData, crewMembers: m}); }} className="material-symbols-outlined text-neutral-700 hover:text-red-500 transition-colors !text-[20px]">close</button>
@@ -345,12 +356,29 @@ export default function MovieEditor({ movie, onCancel, onSaved }: any) {
                     );
                   })}
                 </div>
-                <div className="flex gap-3">
-                  <select id="newPerson" className="flex-1 bg-black border border-neutral-800 text-[11px] font-black uppercase px-6 h-14 outline-none focus:border-neutral-600 transition-all text-white">
-                    <option value="">+ Thêm nhân sự mới...</option>
-                    {allPersons.filter(p => !formData.crewMembers?.some((cm: any) => cm.personId === p.id)).map(p => <option key={p.id} value={p.id}>{p.fullName}</option>)}
-                  </select>
-                  <button onClick={() => { const s = document.getElementById('newPerson') as HTMLSelectElement; if (!s.value) return; const m = [...(formData.crewMembers || [])]; m.push({ personId: s.value, roleId: 2 }); setFormData({...formData, crewMembers: m}); s.value = ""; }} className="bg-neutral-800 hover:bg-neutral-700 text-white text-[11px] font-black uppercase px-10 h-14 transition-all">Add</button>
+                <div className="flex gap-3 items-end">
+                  <div className="flex-1">
+                    <AutocompleteInput 
+                      placeholder="Gõ tên nhân sự để tìm kiếm..."
+                      searchUrl={kw => `${API_BASE}/admin/Persons/search?keyword=${encodeURIComponent(kw)}`}
+                      mapResult={p => ({ id: p.id, label: p.fullName, avatar: p.avatarUrl ?? '', sub: [p.nationality, p.dob ? new Date(p.dob).getFullYear() : null].filter(Boolean).join(' · ') })}
+                      selected={selectedPerson}
+                      onChange={setSelectedPerson}
+                      multiple={false}
+                    />
+                  </div>
+                  <button onClick={() => { 
+                    if (selectedPerson.length === 0) return;
+                    const personId = String(selectedPerson[0].id); 
+                    const m = [...(formData.crewMembers || [])]; 
+                    if (m.some(cm => String(cm.personId) === personId && cm.roleId === 2)) {
+                      alert('Nhân sự này đã được thêm với vai trò Diễn viên! Vui lòng chọn vai trò khác ở danh sách bên trên.');
+                      return;
+                    }
+                    m.push({ personId: personId, roleId: 2 }); 
+                    setFormData({...formData, crewMembers: m}); 
+                    setSelectedPerson([]); 
+                  }} className="bg-neutral-800 hover:bg-neutral-700 text-white text-[11px] font-black uppercase px-10 h-[44px] rounded-sm transition-all">Add</button>
                 </div>
               </div>
             </div>

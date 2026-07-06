@@ -96,6 +96,7 @@ export default function WatchPage() {
   const [myRating, setMyRating] = useState(10);
   const [myComment, setMyComment] = useState("");
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [hasReviewed, setHasReviewed] = useState(false);
 
   const selectEpisode = async (episodeId: string) => {
     if (!slug) return;
@@ -216,6 +217,17 @@ export default function WatchPage() {
       .then(resData => setReviews(resData))
       .catch(console.error);
   };
+
+  useEffect(() => {
+    if (user?.userId && reviews.length > 0) {
+      const myReview = reviews.find(r => r.userId === user.userId);
+      if (myReview && !hasReviewed) {
+        setHasReviewed(true);
+        setMyRating(myReview.rating);
+        setMyComment(myReview.content || "");
+      }
+    }
+  }, [user?.userId, reviews]);
 
   // Setup HLS & History
   useEffect(() => {
@@ -717,7 +729,7 @@ export default function WatchPage() {
                   disabled={submittingReview}
                   className="w-full bg-white text-black font-bold text-xs uppercase tracking-widest py-3 rounded-sm hover:bg-white/80 transition flex items-center justify-center gap-2 disabled:opacity-50"
                 >
-                  <Send size={16} /> Gửi đánh giá
+                  <Send size={16} /> {hasReviewed ? "Chỉnh sửa đánh giá" : "Gửi đánh giá"}
                 </button>
               </form>
             ) : (
